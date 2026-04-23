@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+build/
+dist/
+wheels/
+*.egg-info
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 环境配置
+.env
