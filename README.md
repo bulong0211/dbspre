@@ -9,12 +9,12 @@
     <img src="https://img.shields.io/badge/SUMO-Simulation-orange.svg" alt="SUMO">
     <img src="https://img.shields.io/badge/Database-PostgreSQL-blue.svg" alt="PostgreSQL">
 </p>
+
 ## 📁 目录
 
+
 - [📖 Project Overview (项目简介)](#-project-overview-项目简介)
-    - [✨ Core Features (核心模块)](#-core-features-核心模块)
-
-
+  - [✨ Core Features (核心模块)](#-core-features-核心模块)
 - [🗄️ Database Design (数据库设计)](#️-database-design-数据库设计)
   - [`Parking_Spots` (车位状态表)](#parking_spots-车位状态表)
   - [`Cruising_Logs` (巡航日志表)](#cruising_logs-巡航日志表)
