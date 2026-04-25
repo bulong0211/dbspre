@@ -9,6 +9,7 @@
     <img src="https://img.shields.io/badge/SUMO-Simulation-orange.svg" alt="SUMO">
     <img src="https://img.shields.io/badge/Database-PostgreSQL-blue.svg" alt="PostgreSQL">
 </p>
+[TOC]
 
 ## 📖 Project Overview (项目简介)
 
@@ -20,13 +21,6 @@
 - **Reservation Engine (预订引擎):** 基于 SQL 状态查询为进入区域的车辆分配并预订可用车位。
 - **Price Response (价格响应):** 动态定价机制，当停车位占用率超过 90% 时触发价格上涨，优化系统整体空间分配。
 - **Dashboard (可视化效能评估):** 使用 Streamlit 构建数据看板，对比基础盲目寻找与智能预订两种场景的各项核心指标。
-
-## 📋 Table of Contents
-- [Project Overview](#-project-overview-项目简介)
-- [Database Design](#-database-design-数据库设计)
-- [Project Structure](#-project-structure-项目结构)
-- [Getting Started](#-getting-started-从零开始运行)
-- [Scripts Description](#-scripts-description-脚本功能说明)
 
 ## 🗄️ Database Design (数据库设计)
 
