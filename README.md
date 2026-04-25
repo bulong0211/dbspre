@@ -89,7 +89,7 @@ dbspre/
 - **VS Code** (推荐的编辑器)。为了让 Pylance 能够正确识别 `src` 目录，请在项目根目录创建或修改 `.vscode/settings.json`，写入以下配置：
   ```json
   {
-      "python.analysis.extraPaths": ["${workspaceFolder}"]
+      "python.analysis.extraPaths": ["${workspaceFolder}/src"]
   }
   ```
 
