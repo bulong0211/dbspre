@@ -1,9 +1,7 @@
 import psycopg2
-import sys
 from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-from src.dbspre.database.connection import get_db_connection
-from pathlib import Path
+
+from src.dbspre.database import get_db_connection
 
 SQL_FILE = Path(__file__).resolve().parent.parent / "configs" / "schema.sql"
 
