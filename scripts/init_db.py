@@ -1,4 +1,7 @@
 import psycopg2
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src.dbspre.database.connection import get_db_connection
 from pathlib import Path
 

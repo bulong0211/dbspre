@@ -2,6 +2,9 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 from src.dbspre.database import get_db_connection
 
 # -----------------------------------------------------------------------------
