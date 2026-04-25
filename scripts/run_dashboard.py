@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from dbspre.database import get_db_connection
+from connection import get_db_connection
 
 # -----------------------------------------------------------------------------
 # Streamlit 页面基础配置

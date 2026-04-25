@@ -1,4 +1,4 @@
-from dbspre.database import get_db_connection
+from connection import get_db_connection
 
 
 def analyze():

@@ -1,4 +1,6 @@
-from dbspre.database import get_db_connection
+import sys
+
+from connection import get_db_connection
 
 
 def reset_database(clear_logs=False):

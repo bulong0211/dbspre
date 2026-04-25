@@ -8,7 +8,7 @@ import traci
 import traci.constants as tc
 import traci.exceptions
 
-from dbspre.database import get_db_connection
+from connection import get_db_connection
 
 # -----------------------------------------------------------------------------
 # 环境配置与依赖设置

@@ -65,6 +65,7 @@ dbspre/
 │   └── schema.sql               # 数据库建表与初始数据脚本
 ├── scripts/                     # 执行与管理脚本
 │   ├── analyze_results.py       # 终端输出核心性能指标的统计脚本
+│   ├── connection.py            # 数据库连接池模块，负责读取 .env 提供 PostgreSQL 连接对象
 │   ├── generate_network.ps1     # 生成网格化城市路网的命令行脚本
 │   ├── generate_parking.py      # 生成车位几何分布并输出 XML 与 SQL 的脚本
 │   ├── generate_traffic.py      # 自动生成通勤交通流的脚本
@@ -73,9 +74,6 @@ dbspre/
 │   ├── run_dashboard.py         # 启动基于 Streamlit 的数据可视化分析看板
 │   ├── run_scenario_A_baseline.py # 运行场景 A：盲目寻车（无预订系统）的基准测试
 │   └── run_scenario_B_smart.py    # 运行场景 B：智能动态定价与预订分配仿真
-├── src/dbspre/                  # 核心逻辑依赖库
-│   └── database/                # 数据库连接池模块
-│       └── connection.py        # 负责读取 .env 提供 PostgreSQL 连接对象
 ├── requirements.txt             # Python 依赖包列表
 └── README.md                    # 项目说明文档
 ```
@@ -86,10 +84,10 @@ dbspre/
 - **Python >= 3.14** (建议使用 `uv` 虚拟环境管理器)
 - **PostgreSQL** 本地或远程服务
 - **SUMO** 交通仿真软件 (确保已添加至系统 `Path`，并配置好 `SUMO_HOME` 环境变量)
-- **VS Code** (推荐的编辑器)。为了让 Pylance 能够正确识别 `src` 目录，请在项目根目录创建或修改 `.vscode/settings.json`，写入以下配置：
+- **VS Code** (推荐的编辑器)。为了让 Pylance 能够正确识别 `scripts` 目录，请在项目根目录创建或修改 `.vscode/settings.json`，写入以下配置：
   ```json
   {
-      "python.analysis.extraPaths": ["${workspaceFolder}/src"]
+      "python.analysis.extraPaths": ["${workspaceFolder}/scripts"]
   }
   ```
 
