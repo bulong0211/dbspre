@@ -9,7 +9,23 @@
     <img src="https://img.shields.io/badge/SUMO-Simulation-orange.svg" alt="SUMO">
     <img src="https://img.shields.io/badge/Database-PostgreSQL-blue.svg" alt="PostgreSQL">
 </p>
-[TOC]
+[📖 Project Overview (项目简介)](#-project-overview-项目简介)
+
+  - [✨ Core Features (核心模块)](#-core-features-核心模块)
+- [🗄️ Database Design (数据库设计)](#️-database-design-数据库设计)
+  - [`Parking_Spots` (车位状态表)](#parking_spots-车位状态表)
+  - [`Cruising_Logs` (巡航日志表)](#cruising_logs-巡航日志表)
+- [🏗️ Project Structure (项目结构)](#️-project-structure-项目结构)
+- [🚀 Getting Started (从零开始运行)](#-getting-started-从零开始运行)
+  - [Prerequisites (前置要求)](#prerequisites-前置要求)
+  - [1. Clone \& Install (克隆与依赖安装)](#1-clone--install-克隆与依赖安装)
+  - [2. Configure Database (配置数据库)](#2-configure-database-配置数据库)
+  - [3. Build Simulation Environment (构建仿真环境数据)](#3-build-simulation-environment-构建仿真环境数据)
+  - [4. Initialize Database (初始化与重置数据库)](#4-initialize-database-初始化与重置数据库)
+  - [5. Run Simulations (运行对比仿真)](#5-run-simulations-运行对比仿真)
+  - [6. View Results \& Dashboard (查看评估结果与大屏看板)](#6-view-results--dashboard-查看评估结果与大屏看板)
+- [🛠️ Scripts Description (脚本功能说明)](#️-scripts-description-脚本功能说明)
+
 
 ## 📖 Project Overview (项目简介)
 
