@@ -105,37 +105,37 @@ DB_PORT=5432
 ./scripts/generate_network.ps1
 
 # 2. 生成停车场和对应的 SQL 数据
-python scripts/generate_parking.py
+uv run scripts/generate_parking.py
 
 # 3. 生成向 CBD 汇聚的交通流数据
-python scripts/generate_traffic.py
+uv run scripts/generate_traffic.py
 ```
 
 ### 4. 初始化与重置数据库 (Initialize Database)
 ```bash
 # 连接数据库并执行 configs/schema.sql 建表并录入预设车位
-python scripts/init_db.py
+uv run scripts/init_db.py
 ```
 
 ### 5. 运行对比仿真 (Run Simulations)
 仿真分为场景 A (基线) 和场景 B (智能版)，运行过程中会自动将交互数据和车辆巡航时间/油耗沉淀到数据库中。
 ```bash
 # 运行场景 A：传统盲目寻车模式
-python scripts/run_scenario_A_baseline.py
+uv run scripts/run_scenario_A_baseline.py
 
 # 运行前重置数据库车位状态（避免影响下次仿真）
-python scripts/reset_db.py
+uv run scripts/reset_db.py
 
 # 运行场景 B：智能预订与动态定价模式
-python scripts/run_scenario_B_smart.py
+uv run scripts/run_scenario_B_smart.py
 ```
 
 ### 6. 查看评估结果与大屏看板 (View Results & Dashboard)
 通过终端查看统计报告：
 ```bash
-python scripts/analyze_results.py
+uv run scripts/analyze_results.py
 ```
 启动 Web 可视化仪表盘 (在浏览器中打开提示地址，通常是 `http://localhost:8501`)：
 ```bash
-python -m streamlit run scripts/run_dashboard.py
+uv run streamlit run scripts/run_dashboard.py
 ```
