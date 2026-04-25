@@ -89,7 +89,7 @@ dbspre/
 
 ### 1. Clone & Install (克隆与依赖安装)
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/bulong0211/dbspre.git
 cd dbspre
 
 # 使用 uv 同步并安装依赖 (推荐)
