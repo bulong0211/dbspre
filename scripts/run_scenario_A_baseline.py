@@ -115,7 +115,7 @@ def run_baseline():
                 try:
                     tracked = traci.gui.getTrackedVehicle("View #0")
                     if tracked == "":
-                        if time.time() - last_track_time > 8.0:
+                        if time.time() - last_track_time > 10.0:
                             traci.gui.trackVehicle("View #0", current_protagonist)
                             traci.gui.setZoom("View #0", 2000)
                             last_track_time = time.time()
@@ -220,17 +220,15 @@ def run_baseline():
                             final_spot = target_spot
                             total_attempts = len(protagonist_search_history) + 1
 
-                            print(
-                                f"\n🎉 [追踪报告出炉] 司机 {current_protagonist} 终于停好了！"
-                            )
-                            print(f"   📊 寻位总次数: {total_attempts} 次")
+                            msg = f"🎉 [追踪报告出炉] 司机 {current_protagonist} 终于停好了！\n"
+                            msg += f"   📊 寻位总次数: {total_attempts} 次\n"
 
                             if protagonist_search_history:
                                 history_str = " -> ".join(protagonist_search_history)
-                                print(f"   🛣️ 失败的冤枉路: {history_str}")
+                                msg += f"   🛣️ 失败的冤枉路: {history_str}\n"
 
-                            print(f"   ✅ 最终落脚点: {final_spot}")
-                            print("-" * 60 + "\n")
+                            msg += f"   ✅ 最终落脚点: {final_spot}"
+                            traci.simulation.writeMessage(msg)
                             current_protagonist = None
 
                         traci.vehicle.setColor(vid, (0, 0, 0, 255))
@@ -272,7 +270,7 @@ def run_baseline():
                                 protagonist_search_history.append(failed_spot)
 
                                 attempt_num = len(protagonist_search_history)
-                                print(
+                                traci.simulation.writeMessage(
                                     f"  ❌ [第 {attempt_num} 次失败] {vid} 到达 {failed_spot}，但车位已被抢占！"
                                 )
                                 traci.vehicle.setColor(

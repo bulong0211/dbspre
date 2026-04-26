@@ -118,7 +118,7 @@ def run_smart_booking_with_pricing():
 
                         try:
                             traci.gui.trackVehicle("View #0", current_protagonist)
-                            traci.gui.setZoom("View #0", 800)
+                            traci.gui.setZoom("View #0", 2000)
                             last_track_time = time.time()
                         except Exception:
                             pass
@@ -134,7 +134,7 @@ def run_smart_booking_with_pricing():
                     if tracked == "":
                         if time.time() - last_track_time > 8.0:
                             traci.gui.trackVehicle("View #0", current_protagonist)
-                            traci.gui.setZoom("View #0", 800)
+                            traci.gui.setZoom("View #0", 2000)
                             last_track_time = time.time()
                     else:
                         last_track_time = time.time()
@@ -291,12 +291,10 @@ def run_smart_booking_with_pricing():
 
                         # 如果当前车辆是被重点追踪的主角，则打印最终历程报告
                         if vid == current_protagonist:
-                            print(
-                                f"\n🎉 [停车报告出炉] 司机 {current_protagonist} 停好了！"
+                            traci.simulation.writeMessage(
+                                f"🎉 [停车报告出炉] 司机 {current_protagonist} 停好了！\n"
+                                f"   ✅ 最终落脚点: {target_spot}"
                             )
-
-                            print(f"   ✅ 最终落脚点: {target_spot}")
-                            print("-" * 60 + "\n")
                             current_protagonist = None
 
                         traci.vehicle.setColor(vid, (0, 0, 0, 255))

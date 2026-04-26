@@ -11,4 +11,8 @@
         <start value="true" />       <!-- 自动开始仿真 -->
         <delay value="10" />         <!-- 仿真延迟10ms -->
     </gui>
-</configuration>
+
+    <report>
+        <message-log value="simulation.log" />
+    </report>
+    </configuration>
