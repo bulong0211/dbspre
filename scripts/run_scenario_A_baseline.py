@@ -1,6 +1,7 @@
 import os
 import random
 import sys
+import time
 from pathlib import Path
 
 import traci
@@ -33,7 +34,7 @@ def run_baseline():
     """
     print("🔄 准备仿真环境...")
     reset_database(clear_logs=True)
-    
+
     print("🔌 正在连接数据库...")
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -63,6 +64,7 @@ def run_baseline():
     TOTAL_VEHICLES = 2500
 
     current_time = 0
+    last_track_time = 0.0
 
     # -------------------------------------------------------------------------
     # 主仿真循环，时限设定为 7200 秒
@@ -71,23 +73,6 @@ def run_baseline():
         traci.simulationStep()
         current_time = traci.simulation.getTime()
         active_vehicles = traci.vehicle.getIDList()
-
-        # 根据车辆速度动态调整车辆颜色以指示其行驶状态
-        for vid in active_vehicles:
-            try:
-                if vid in veh_stats and veh_stats[vid].get("status") in [
-                    "driving",
-                    "cruising",
-                ]:
-                    speed = traci.vehicle.getSpeed(vid)
-
-                    if speed < 0.5:  # type: ignore
-                        traci.vehicle.setColor(vid, (255, 50, 50, 255))
-                    else:
-                        traci.vehicle.setColor(vid, (50, 200, 255, 255))
-
-            except Exception:
-                pass
 
         # GUI 环境下聚焦追踪车辆
         if HAS_GUI:
@@ -116,7 +101,8 @@ def run_baseline():
 
                         try:
                             traci.gui.trackVehicle("View #0", current_protagonist)
-                            traci.gui.setZoom("View #0", 800)
+                            traci.gui.setZoom("View #0", 2000)
+                            last_track_time = time.time()
                         except Exception:
                             pass
                     else:
@@ -125,6 +111,18 @@ def run_baseline():
                             traci.gui.setZoom("View #0", 250)
                         except Exception:
                             pass
+            else:
+                try:
+                    tracked = traci.gui.getTrackedVehicle("View #0")
+                    if tracked == "":
+                        if time.time() - last_track_time > 8.0:
+                            traci.gui.trackVehicle("View #0", current_protagonist)
+                            traci.gui.setZoom("View #0", 2000)
+                            last_track_time = time.time()
+                    else:
+                        last_track_time = time.time()
+                except Exception:
+                    pass
 
         # ---------------------------------------------------------------------
         # 新生成车辆的处理及初始车位分配

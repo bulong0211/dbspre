@@ -74,6 +74,7 @@ dbspre/
 │   ├── demo.sumocfg             # SUMO 仿真统一启动配置文件
 │   ├── demo.trips.xml           # 车辆行程起止点
 │   ├── demo.net.xml             # 城市网格路网
+│   ├── gui-settings.xml         # SUMO GUI 视觉配置文件 (真实车辆模型与速度着色)
 │   ├── parking.add.xml          # 停车场与车位坐标分布
 │   └── schema.sql               # 数据库建表与初始数据脚本
 ├── scripts/                     # 执行与管理脚本

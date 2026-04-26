@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<viewsettings>
+    <scheme name="real world">
+        <!-- vehicleQuality="3" 设置为真实形状，colorMode="5" 设置为根据速度着色 -->
+        <vehicles vehicleMode="0" vehicleQuality="3" colorMode="5">
+            <colorScheme name="by speed">
+                <entry color="255,50,50,255" threshold="0.49" name="slow"/>
+                <entry color="50,200,255,255" threshold="0.50" name="fast"/>
+            </colorScheme>
+        </vehicles>
+    </scheme>
+    <delay value="10" />
+</viewsettings>

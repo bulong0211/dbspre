@@ -2,6 +2,7 @@ import math
 import os
 import random
 import sys
+import time
 from pathlib import Path
 
 import traci
@@ -34,7 +35,7 @@ def run_smart_booking_with_pricing():
     """
     print("🔄 准备仿真环境...")
     reset_database(clear_logs=False)
-    
+
     print("🔌 正在连接数据库...")
     conn = get_db_connection()  # type: ignore
     cursor = conn.cursor()
@@ -78,6 +79,7 @@ def run_smart_booking_with_pricing():
     TOTAL_VEHICLES = 2500
 
     current_time = 0
+    last_track_time = 0.0
 
     # 距离和价格的权重系数
     WEIGHT_DISTANCE = 1.0
@@ -90,22 +92,6 @@ def run_smart_booking_with_pricing():
         traci.simulationStep()
         current_time = traci.simulation.getTime()
         active_vehicles = traci.vehicle.getIDList()
-
-        # 根据车辆速度动态调整车辆颜色以指示其行驶状态
-        for vid in active_vehicles:
-            try:
-                if vid in veh_stats and veh_stats[vid].get("status") in [
-                    "driving",
-                ]:
-                    speed = traci.vehicle.getSpeed(vid)
-
-                    if speed < 0.5:  # type: ignore
-                        traci.vehicle.setColor(vid, (255, 50, 50, 255))
-                    else:
-                        traci.vehicle.setColor(vid, (50, 200, 255, 255))
-
-            except Exception:
-                pass
 
         # GUI 环境下聚焦追踪车辆
         if HAS_GUI:
@@ -133,6 +119,7 @@ def run_smart_booking_with_pricing():
                         try:
                             traci.gui.trackVehicle("View #0", current_protagonist)
                             traci.gui.setZoom("View #0", 800)
+                            last_track_time = time.time()
                         except Exception:
                             pass
                     else:
@@ -141,6 +128,18 @@ def run_smart_booking_with_pricing():
                             traci.gui.setZoom("View #0", 250)
                         except Exception:
                             pass
+            else:
+                try:
+                    tracked = traci.gui.getTrackedVehicle("View #0")
+                    if tracked == "":
+                        if time.time() - last_track_time > 8.0:
+                            traci.gui.trackVehicle("View #0", current_protagonist)
+                            traci.gui.setZoom("View #0", 800)
+                            last_track_time = time.time()
+                    else:
+                        last_track_time = time.time()
+                except Exception:
+                    pass
 
         departed = traci.simulation.getDepartedIDList()
         if departed:
@@ -358,20 +357,6 @@ def run_smart_booking_with_pricing():
     sync_data = [(d["booked"], d["current_price"], sid) for sid, d in all_spots.items()]
     cursor.executemany(
         "UPDATE Parking_Spots SET occupied = %s, current_price = %s WHERE spot_id = %s",
-        sync_data,
-    )
-    conn.commit()
-    print(
-        f"🏁 场景 B (定价版) 仿真结束。当前时间步: {current_time}。共记录 {completed_vehicles} 辆车。"
-    )
-    traci.close()
-    cursor.close()
-    conn.close()
-
-
-if __name__ == "__main__":
-    run_smart_booking_with_pricing()
-HERE spot_id = %s",
         sync_data,
     )
     conn.commit()
