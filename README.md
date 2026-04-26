@@ -78,7 +78,6 @@ dbspre/
 │   ├── parking.add.xml          # 停车场与车位坐标分布
 │   └── schema.sql               # 数据库建表与初始数据脚本
 ├── scripts/                     # 执行与管理脚本
-│   ├── analyze_results.py       # 终端输出核心性能指标的统计脚本
 │   ├── connection.py            # 数据库连接池模块，负责读取 .env 提供 PostgreSQL 连接对象
 │   ├── generate_network.ps1     # 生成网格化城市路网的命令行脚本
 │   ├── generate_parking.py      # 生成车位几何分布并输出 XML 与 SQL 的脚本
@@ -147,10 +146,6 @@ uv run scripts/run_scenario_B_smart.py
 ```
 
 ### 5. View Results & Dashboard (查看评估结果与大屏看板)
-通过终端查看统计报告：
-```bash
-uv run scripts/analyze_results.py
-```
 启动 Web 可视化仪表盘 (在浏览器中打开提示地址，通常是 `http://localhost:8501`)：
 ```bash
 uv run streamlit run scripts/run_dashboard.py

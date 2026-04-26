@@ -1,9 +1,11 @@
+import warnings
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-
 from connection import get_db_connection
 
+warnings.filterwarnings("ignore")
 # -----------------------------------------------------------------------------
 # Streamlit 页面基础配置
 # -----------------------------------------------------------------------------
@@ -18,7 +20,7 @@ def fetch_data():
     """
     try:
         conn = get_db_connection()  # type: ignore
-        
+
         # 通过 SQL 查询从日志中聚合关键性能指标
         query = """
             SELECT 
@@ -38,12 +40,10 @@ def fetch_data():
         conn.close()
 
         # 映射数据库场景名称为易于阅读的 UI 标签
-        df["scenario"] = df["scenario"].replace(
-            {
-                "Baseline": "场景 A (盲目寻找)",
-                "Smart_Booking_Priced": "场景 B (智能定价)",
-            }
-        )
+        df["scenario"] = df["scenario"].replace({
+            "Baseline": "场景 A (盲目寻找)",
+            "Smart_Booking_Priced": "场景 B (智能定价)",
+        })
         return df
     except Exception as e:
         st.error(f"数据库连接失败: {e}")
@@ -75,6 +75,10 @@ else:
 
     success_A = (row_A["parked_cars"] / row_A["total_cars"]) * 100
     success_B = (row_B["parked_cars"] / row_B["total_cars"]) * 100
+    
+    fuel_saved = row_A["total_fuel_kg"] - row_B["total_fuel_kg"]
+    fuel_saved_pct = (fuel_saved / row_A["total_fuel_kg"]) * 100 if row_A["total_fuel_kg"] > 0 else 0
+    dist_saved = row_A["total_dist_km"] - row_B["total_dist_km"]
 
     with col1:
         st.metric(
@@ -159,6 +163,16 @@ else:
             template="plotly_white",
         )
         st.plotly_chart(fig_time, use_container_width=True)
+
+    st.markdown("---")
+
+    # -------------------------------------------------------------------------
+    # 核心学术结论
+    # -------------------------------------------------------------------------
+    st.markdown("### 💡 核心学术结论 (适用于答辩 PPT)")
+    st.info(f"**✅ 吞吐量突破：** 传统盲目模式下，因路网拥堵死锁导致大量车辆 ({row_A['failed_cars']:.0f} 辆) 无法停车；本系统将停车成功率从 **{success_A:.1f}%** 跃升至 **{success_B:.1f}%**。")
+    st.info("**✅ 幸存者偏差修正：** 仅看“成功者”的寻车时间会掩盖路网的拥堵本质；引入“全局平均耗时”后，更客观地体现了系统的真实时间成本。")
+    st.info(f"**✅ 环境经济价值：** 动态定价与预订机制彻底消灭了 **{dist_saved:.1f}** 公里的无效巡航里程，实现系统级减排 **{fuel_saved_pct:.2f}%**！")
 
     st.markdown("---")
 
