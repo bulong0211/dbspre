@@ -12,7 +12,4 @@
         <delay value="10" />         <!-- 仿真延迟10ms -->
     </gui>
 
-    <report>
-        <message-log value="simulation.log" />
-    </report>
-    </configuration>
+</configuration>

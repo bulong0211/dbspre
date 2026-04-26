@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-    <img src="https://img.shields.io/badge/Python-3.14+-blue.svg" alt="Python Version">
+    <img src="https://img.shields.io/badge/Python-3.10-blue.svg" alt="Python Version">
     <img src="https://img.shields.io/badge/SUMO-Simulation-orange.svg" alt="SUMO">
     <img src="https://img.shields.io/badge/Database-PostgreSQL-blue.svg" alt="PostgreSQL">
 </p>
@@ -13,6 +13,7 @@
 ## 📁 目录
 
 
+- [� 目录](#-目录)
 - [📖 Project Overview (项目简介)](#-project-overview-项目简介)
   - [✨ Core Features (核心模块)](#-core-features-核心模块)
 - [🗄️ Database Design (数据库设计)](#️-database-design-数据库设计)
@@ -95,7 +96,7 @@ dbspre/
 ## 🚀 Getting Started (从零开始运行)
 
 ### Prerequisites (前置要求)
-- **Python >= 3.14** (建议使用 `uv` 虚拟环境管理器)
+- **Python = 3.10** (建议使用 `uv` 虚拟环境管理器)
 - **PostgreSQL** 本地或远程服务
 - **SUMO** 交通仿真软件 (确保已添加至系统 `Path`，并配置好 `SUMO_HOME` 环境变量)
 - **VS Code** (推荐的编辑器)。为了让 Pylance 能够正确识别 `scripts` 目录，请在项目根目录创建或修改 `.vscode/settings.json`，写入以下配置：

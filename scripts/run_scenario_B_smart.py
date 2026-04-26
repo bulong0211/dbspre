@@ -110,11 +110,10 @@ def run_smart_booking_with_pricing():
                         current_protagonist = random.choice(struggling_candidates)
                         total_tracked += 1
 
-                        print("\n" + "=" * 60)
-                        print(
-                            f"🎬 [镜头切角] 锁定第 {total_tracked} 位司机: {current_protagonist} 的寻车之旅"
-                        )
-                        print("=" * 60)
+                        msg = "\n" + "=" * 60
+                        msg += f"🎬 [镜头切角] 锁定第 {total_tracked} 位司机: {current_protagonist} 的寻车之旅"
+                        msg += "=" * 60
+                        traci.simulation.writeMessage(msg)
 
                         try:
                             traci.gui.trackVehicle("View #0", current_protagonist)
@@ -191,7 +190,8 @@ def run_smart_booking_with_pricing():
                     ]
 
                     if not available_spots:
-                        print(f"⚠️ [系统爆满] 车辆 {vid} 无法分配到车位！")
+                        msg = f"⚠️ [系统爆满] 车辆 {vid} 无法分配到车位！"
+                        traci.simulation.writeMessage(msg)
                         continue
 
                     best_spot = None
@@ -291,10 +291,9 @@ def run_smart_booking_with_pricing():
 
                         # 如果当前车辆是被重点追踪的主角，则打印最终历程报告
                         if vid == current_protagonist:
-                            traci.simulation.writeMessage(
-                                f"🎉 [停车报告出炉] 司机 {current_protagonist} 停好了！\n"
-                                f"   ✅ 最终落脚点: {target_spot}"
-                            )
+                            msg = f"🎉 [停车报告出炉] 司机 {current_protagonist} 停好了！\n"
+                            msg += f"   ✅ 最终落脚点: {target_spot}"
+                            traci.simulation.writeMessage(msg)
                             current_protagonist = None
 
                         traci.vehicle.setColor(vid, (0, 0, 0, 255))

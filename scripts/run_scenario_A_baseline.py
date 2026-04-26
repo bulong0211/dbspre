@@ -93,11 +93,10 @@ def run_baseline():
                         total_tracked += 1
                         protagonist_search_history = []
 
-                        print("\n" + "=" * 60)
-                        print(
-                            f"🎬 [镜头切角] 锁定第 {total_tracked} 位司机: {current_protagonist} 的寻车之旅"
-                        )
-                        print("=" * 60)
+                        msg = "\n" + "=" * 60
+                        msg += f"🎬 [镜头切角] 锁定第 {total_tracked} 位司机: {current_protagonist} 的寻车之旅"
+                        msg += "=" * 60
+                        traci.simulation.writeMessage(msg)
 
                         try:
                             traci.gui.trackVehicle("View #0", current_protagonist)
