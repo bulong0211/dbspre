@@ -21,6 +21,8 @@ from sumolib import checkBinary
 # 配置文件路径和 SUMO 启动参数
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 HAS_GUI = True
+sumoBinary = checkBinary("sumo-gui") if HAS_GUI else checkBinary("sumo")
+sumoCmd = [sumoBinary, "-c", str(CONFIG_DIR / "demo.sumocfg")]
 
 
 def run_baseline():
@@ -364,21 +366,6 @@ def run_baseline():
                     """INSERT INTO Cruising_Logs 
                     (vehicle_id, scenario, search_time_sec, cruising_distance_m, total_fuel_mg, final_spot_id) 
                     VALUES (%s, %s, %s, %s, %s, %s)""",
-                    (vid, "Baseline", search_time, cruise_dist, total_fuel, None),
-                )
-        conn.commit()
-
-    print(
-        f"🏁 场景 A 仿真结束。当前时间步: {current_time}。共成功记录 {completed_vehicles} 辆车的数据。"
-    )
-    traci.close()
-    cursor.close()
-    conn.close()
-
-
-if __name__ == "__main__":
-    run_baseline()
-                 VALUES (%s, %s, %s, %s, %s, %s)""",
                     (vid, "Baseline", search_time, cruise_dist, total_fuel, None),
                 )
         conn.commit()

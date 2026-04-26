@@ -13,7 +13,7 @@ from pathlib import Path
 # 1. 路径配置 (Configuration)
 # =============================================================================
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
-NET_FILE = CONFIG_DIR / "optimal_cbd.net.xml"
+NET_FILE = CONFIG_DIR / "demo.net.xml"
 OUTPUT_TRIPS = CONFIG_DIR / "demo.trips.xml"
 
 # =============================================================================
@@ -66,9 +66,12 @@ for i in range(VEHICLE_COUNT):
     end_edge = random.choice(internal_edges)
     depart_time = round(random.uniform(0, SIM_DURATION), 1)
 
-    trips_data.append(
-        {"id": f"veh_{i}", "depart": depart_time, "from": start_edge, "to": end_edge}
-    )
+    trips_data.append({
+        "id": f"veh_{i}",
+        "depart": depart_time,
+        "from": start_edge,
+        "to": end_edge,
+    })
 
 trips_data.sort(key=lambda x: x["depart"])
 

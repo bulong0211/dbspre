@@ -11,4 +11,4 @@
 # --default.lanenumber 3        : 默认每条道路的车道数为 3 条
 # --default.speed 11.11         : 默认限速为 11.11 m/s (约等于 40 km/h)
 # ============================================================================
-netgenerate --grid --grid.number=15 --grid.length=200 --output-file=configs/optimal_cbd.net.xml --tls.guess true --tls.default-type actuated --default.lanenumber 3 --default.speed 11.11
+netgenerate --grid --grid.number=15 --grid.length=200 --output-file=configs/demo.net.xml --tls.guess true --tls.default-type actuated --default.lanenumber 3 --default.speed 11.11

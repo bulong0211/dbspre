@@ -15,7 +15,7 @@ from pathlib import Path
 # 1. 路径配置 (Path Configuration)
 # ==========================================
 BASE_DIR = Path(__file__).resolve().parent.parent
-NET_FILE = BASE_DIR / "configs" / "optimal_cbd.net.xml"
+NET_FILE = BASE_DIR / "configs" / "demo.net.xml"
 OUTPUT_SQL = BASE_DIR / "configs" / "schema.sql"
 OUTPUT_ADD_XML = BASE_DIR / "configs" / "parking.add.xml"
 

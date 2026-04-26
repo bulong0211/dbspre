@@ -23,10 +23,9 @@
   - [Prerequisites (前置要求)](#prerequisites-前置要求)
   - [1. Clone \& Install (克隆与依赖安装)](#1-clone--install-克隆与依赖安装)
   - [2. Configure Database (配置数据库)](#2-configure-database-配置数据库)
-  - [3. Build Simulation Environment (构建仿真环境数据)](#3-build-simulation-environment-构建仿真环境数据)
-  - [4. Initialize Database (初始化与重置数据库)](#4-initialize-database-初始化与重置数据库)
-  - [5. Run Simulations (运行对比仿真)](#5-run-simulations-运行对比仿真)
-  - [6. View Results \& Dashboard (查看评估结果与大屏看板)](#6-view-results--dashboard-查看评估结果与大屏看板)
+  - [3. Prepare Simulation Environment \& Database (一键构建仿真环境与数据库)](#3-prepare-simulation-environment--database-一键构建仿真环境与数据库)
+  - [4. Run Simulations (运行对比仿真)](#4-run-simulations-运行对比仿真)
+  - [5. View Results \& Dashboard (查看评估结果与大屏看板)](#5-view-results--dashboard-查看评估结果与大屏看板)
 - [🛠️ Scripts Description (脚本功能说明)](#️-scripts-description-脚本功能说明)
 
 
@@ -74,7 +73,7 @@ dbspre/
 │   ├── demo.rou.xml             # 车辆路由配置
 │   ├── demo.sumocfg             # SUMO 仿真统一启动配置文件
 │   ├── demo.trips.xml           # 车辆行程起止点
-│   ├── optimal_cbd.net.xml      # 城市网格路网
+│   ├── demo.net.xml             # 城市网格路网
 │   ├── parking.add.xml          # 停车场与车位坐标分布
 │   └── schema.sql               # 数据库建表与初始数据脚本
 ├── scripts/                     # 执行与管理脚本
@@ -84,6 +83,7 @@ dbspre/
 │   ├── generate_parking.py      # 生成车位几何分布并输出 XML 与 SQL 的脚本
 │   ├── generate_traffic.py      # 自动生成通勤交通流的脚本
 │   ├── init_db.py               # 执行 SQL 脚本，初始化并灌入路网停车数据的脚本
+│   ├── prepare_simulation.py    # 一键准备脚本，顺序执行生成路网、停车位、交通流及数据库初始化的操作
 │   ├── reset_db.py              # 重置数据库状态，清空历史日志
 │   ├── run_dashboard.py         # 启动基于 Streamlit 的数据可视化分析看板
 │   ├── run_scenario_A_baseline.py # 运行场景 A：盲目寻车（无预订系统）的基准测试
@@ -128,26 +128,14 @@ DB_PORT=5432
 ```
 > **注意:** 请确保您已经在 PostgreSQL 中创建了对应的数据库 (例如 `smart_parking`)。
 
-### 3. Build Simulation Environment (构建仿真环境数据)
-如果在 `configs/` 目录下已有构建好的路网文件则可跳过这部分，若需从头生成请按顺序执行：
+### 3. Prepare Simulation Environment & Database (一键构建仿真环境与数据库)
+如果在 `configs/` 目录下已有构建好的路网文件则可跳过这部分。若需从头生成，请运行封装好的一键准备脚本。
+该脚本会自动调用生成路网、停车场、交通流，并连接 PostgreSQL 完成数据库的初始化与数据录入：
 ```bash
-# 1. 生成基础城市路网 (需在 PowerShell 下运行)
-./scripts/generate_network.ps1
-
-# 2. 生成停车场和对应的 SQL 数据
-uv run scripts/generate_parking.py
-
-# 3. 生成向 CBD 汇聚的交通流数据
-uv run scripts/generate_traffic.py
+uv run scripts/prepare_simulation.py
 ```
 
-### 4. Initialize Database (初始化与重置数据库)
-```bash
-# 连接数据库并执行 configs/schema.sql 建表并录入预设车位
-uv run scripts/init_db.py
-```
-
-### 5. Run Simulations (运行对比仿真)
+### 4. Run Simulations (运行对比仿真)
 仿真分为场景 A (基准) 和场景 B (智能版)，运行过程中会自动将交互数据和车辆巡航时间/油耗沉淀到数据库中。
 ```bash
 # 运行场景 A：传统盲目寻车模式
@@ -160,7 +148,7 @@ uv run scripts/reset_db.py
 uv run scripts/run_scenario_B_smart.py
 ```
 
-### 6. View Results & Dashboard (查看评估结果与大屏看板)
+### 5. View Results & Dashboard (查看评估结果与大屏看板)
 通过终端查看统计报告：
 ```bash
 uv run scripts/analyze_results.py
@@ -175,6 +163,7 @@ uv run streamlit run scripts/run_dashboard.py
 - **`generate_parking.py`**: 解析路网文件，使用几何向量计算划分 50 个路外停车场和 800 个路边停车位，写入 `configs/parking.add.xml` 及 `configs/schema.sql`。
 - **`generate_traffic.py`**: 基于路网边界与核心区生成 2,500 辆驶向 CBD 的通勤车辆，并建立 `<trips>` 轨迹配置。
 - **`init_db.py`**: 连接 PostgreSQL，读取 `schema.sql` 完成表结构创建及车位初始数据的导入。
+- **`prepare_simulation.py`**: 仿真实验前的一键准备脚本，顺序封装执行了生成路网、停车位、交通流及数据库初始化的操作。
 - **`reset_db.py`**: 用于在不同阶段重置车位状态到未占用，提供 `--all` 标志时清空仿真日志。
 - **`run_scenario_A_baseline.py`**: 基于 TraCI 的无引导仿真，车辆盲目随机驶向路网尝试停车，满员即触发继续巡航，并全量记录轨迹与燃油损失。
 - **`run_scenario_B_smart.py`**: 智能核心控制流；引入全局数据库字典。根据车位供需 (`>90%` 占用率) 调整浪涌价格，并用综合惩罚函数（距离 + 价格）为新入网车辆预分配车位，消除找位巡航。

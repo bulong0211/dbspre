@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <input>
-        <net-file value="optimal_cbd.net.xml"/>
-        <route-files value="demo.rou.xml"/>
-        <additional-files value="parking.add.xml"/>
+        <net-file value="demo.net.xml" />
+        <route-files value="demo.rou.xml" />
+        <additional-files value="parking.add.xml" />
     </input>
+
+    <gui>
+        <start value="true" />       <!-- 自动开始仿真 -->
+        <delay value="10" />         <!-- 仿真延迟10ms -->
+    </gui>
 </configuration>

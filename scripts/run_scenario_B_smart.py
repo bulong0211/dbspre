@@ -22,6 +22,8 @@ from sumolib import checkBinary
 # 配置文件路径和 SUMO 启动参数
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 HAS_GUI = True
+sumoBinary = checkBinary("sumo-gui") if HAS_GUI else checkBinary("sumo")
+sumoCmd = [sumoBinary, "-c", str(CONFIG_DIR / "demo.sumocfg")]
 
 
 def run_smart_booking_with_pricing():
