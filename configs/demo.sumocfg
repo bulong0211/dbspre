@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <input>
+        <net-file value="optimal_cbd.net.xml"/>
+        <route-files value="demo.rou.xml"/>
+        <additional-files value="parking.add.xml"/>
+    </input>
+</configuration>

@@ -72,6 +72,7 @@
 dbspre/
 ├── configs/                     # SUMO 仿真配置文件与 SQL 脚本
 │   ├── demo.rou.xml             # 车辆路由配置
+│   ├── demo.sumocfg             # SUMO 仿真统一启动配置文件
 │   ├── demo.trips.xml           # 车辆行程起止点
 │   ├── optimal_cbd.net.xml      # 城市网格路网
 │   ├── parking.add.xml          # 停车场与车位坐标分布

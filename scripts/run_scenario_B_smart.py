@@ -7,7 +7,6 @@ from pathlib import Path
 import traci
 import traci.constants as tc
 import traci.exceptions
-
 from connection import get_db_connection
 
 # -----------------------------------------------------------------------------
@@ -18,18 +17,11 @@ if "SUMO_HOME" in os.environ:
 else:
     sys.exit("❌ 请声明环境变量 'SUMO_HOME'")
 
+from sumolib import checkBinary
+
 # 配置文件路径和 SUMO 启动参数
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
-sumoCmd = [
-    "sumo",
-    "-n",
-    str(CONFIG_DIR / "optimal_cbd.net.xml"),
-    "-a",
-    str(CONFIG_DIR / "parking.add.xml"),
-    "-r",
-    str(CONFIG_DIR / "demo.rou.xml"),
-]
-HAS_GUI = "sumo-gui" in sumoCmd[0]
+HAS_GUI = True
 
 
 def run_smart_booking_with_pricing():
@@ -41,7 +33,7 @@ def run_smart_booking_with_pricing():
     conn = get_db_connection()  # type: ignore
     cursor = conn.cursor()
 
-    # 从数据库获取初始停车位信息并构建缓存字典
+    # 从数据库查询所有停车场并构建缓存字典
     cursor.execute(
         "SELECT spot_id, edge_id, capacity, base_price, current_price FROM Parking_Spots"
     )
@@ -67,14 +59,18 @@ def run_smart_booking_with_pricing():
         except traci.exceptions.TraCIException:
             data["pos"] = (0, 0)
 
-    # 仿真跟踪与统计变量
-    tracked_vehicle = None
+    # 全局跟踪及统计变量
+    current_protagonist = None
+    total_tracked = 0
+
     veh_stats = {}
     fuel_tracker = {}
     dist_tracker = {}
-    teleported_vehicles = 0
+
     completed_vehicles = 0
+    teleported_vehicles = 0
     TOTAL_VEHICLES = 2500
+
     current_time = 0
 
     # 距离和价格的权重系数
@@ -89,24 +85,56 @@ def run_smart_booking_with_pricing():
         current_time = traci.simulation.getTime()
         active_vehicles = traci.vehicle.getIDList()
 
-        # GUI 环境下的动态视角跟随
-        if HAS_GUI:
-            moving_vehicles = [
-                v
-                for v in active_vehicles
-                if veh_stats.get(v, {}).get("status") in ["driving", "cruising"]
-            ]
+        # 根据车辆速度动态调整车辆颜色以指示其行驶状态
+        for vid in active_vehicles:
+            try:
+                if vid in veh_stats and veh_stats[vid].get("status") in [
+                    "driving",
+                ]:
+                    speed = traci.vehicle.getSpeed(vid)
 
-            if tracked_vehicle is None or tracked_vehicle not in moving_vehicles:
-                if len(moving_vehicles) > 0:
-                    tracked_vehicle = random.choice(moving_vehicles)
-                    try:
-                        traci.gui.trackVehicle("View #0", tracked_vehicle)
-                        traci.gui.setZoom("View #0", 1500)
-                    except traci.exceptions.TraCIException:
-                        tracked_vehicle = None
-                else:
-                    tracked_vehicle = None
+                    if speed < 0.5:  # type: ignore
+                        traci.vehicle.setColor(vid, (255, 50, 50, 255))
+                    else:
+                        traci.vehicle.setColor(vid, (50, 200, 255, 255))
+
+            except Exception:
+                pass
+
+        # GUI 环境下聚焦追踪车辆
+        if HAS_GUI:
+            if (
+                current_protagonist is None
+                or current_protagonist not in active_vehicles
+            ):
+                if len(active_vehicles) > 50:
+                    struggling_candidates = [
+                        v
+                        for v in active_vehicles
+                        if v in veh_stats and veh_stats[v].get("status") in ["driving"]
+                    ]
+
+                    if struggling_candidates:
+                        current_protagonist = random.choice(struggling_candidates)
+                        total_tracked += 1
+
+                        print("\n" + "=" * 60)
+                        print(
+                            f"🎬 [镜头切角] 锁定第 {total_tracked} 位司机: {current_protagonist} 的寻车之旅"
+                        )
+                        print("=" * 60)
+
+                        try:
+                            traci.gui.trackVehicle("View #0", current_protagonist)
+                            traci.gui.setZoom("View #0", 800)
+                        except Exception:
+                            pass
+                    else:
+                        try:
+                            traci.gui.trackVehicle("View #0", "")
+                            traci.gui.setZoom("View #0", 250)
+                        except Exception:
+                            pass
 
         departed = traci.simulation.getDepartedIDList()
         if departed:
@@ -233,6 +261,7 @@ def run_smart_booking_with_pricing():
                         ),
                     )
                     conn.commit()
+
                     continue
 
                 # 读取并累计车辆在当前时间步的指标数据
@@ -254,6 +283,18 @@ def run_smart_booking_with_pricing():
 
                         search_time = current_time - stats["spawn_time"]
                         total_fuel = fuel_tracker.get(vid, 0)
+
+                        # 如果当前车辆是被重点追踪的主角，则打印最终历程报告
+                        if vid == current_protagonist:
+                            print(
+                                f"\n🎉 [停车报告出炉] 司机 {current_protagonist} 停好了！"
+                            )
+
+                            print(f"   ✅ 最终落脚点: {target_spot}")
+                            print("-" * 60 + "\n")
+                            current_protagonist = None
+
+                        traci.vehicle.setColor(vid, (0, 0, 0, 255))
 
                         cursor.execute(
                             """INSERT INTO Cruising_Logs 
@@ -311,6 +352,20 @@ def run_smart_booking_with_pricing():
     sync_data = [(d["booked"], d["current_price"], sid) for sid, d in all_spots.items()]
     cursor.executemany(
         "UPDATE Parking_Spots SET occupied = %s, current_price = %s WHERE spot_id = %s",
+        sync_data,
+    )
+    conn.commit()
+    print(
+        f"🏁 场景 B (定价版) 仿真结束。当前时间步: {current_time}。共记录 {completed_vehicles} 辆车。"
+    )
+    traci.close()
+    cursor.close()
+    conn.close()
+
+
+if __name__ == "__main__":
+    run_smart_booking_with_pricing()
+HERE spot_id = %s",
         sync_data,
     )
     conn.commit()

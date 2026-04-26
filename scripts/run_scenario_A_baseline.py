@@ -6,7 +6,6 @@ from pathlib import Path
 import traci
 import traci.constants as tc
 import traci.exceptions
-
 from connection import get_db_connection
 
 # -----------------------------------------------------------------------------
@@ -17,22 +16,11 @@ if "SUMO_HOME" in os.environ:
 else:
     sys.exit("❌ 请声明环境变量 'SUMO_HOME'")
 
+from sumolib import checkBinary
+
 # 配置文件路径和 SUMO 启动参数
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
-sumoCmd = [
-    "sumo-gui",
-    "-n",
-    str(CONFIG_DIR / "optimal_cbd.net.xml"),
-    "-a",
-    str(CONFIG_DIR / "parking.add.xml"),
-    "-r",
-    str(CONFIG_DIR / "demo.rou.xml"),
-    "--start",
-    "--delay",
-    "10",
-]
-
-HAS_GUI = "sumo-gui" in sumoCmd[0]
+HAS_GUI = True
 
 
 def run_baseline():
@@ -44,7 +32,7 @@ def run_baseline():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 从数据库初始化停车场状态，默认均为未占用状态
+    # 从数据库查询所有停车场并构建缓存字典
     cursor.execute("SELECT spot_id, edge_id, capacity FROM Parking_Spots")
     all_spots = {
         row[0]: {"edge": row[1], "capacity": row[2], "occupied": 0}
@@ -95,7 +83,7 @@ def run_baseline():
             except Exception:
                 pass
 
-        # GUI 环境下聚焦追踪受困车辆（巡航中）
+        # GUI 环境下聚焦追踪车辆
         if HAS_GUI:
             if (
                 current_protagonist is None
@@ -376,6 +364,21 @@ def run_baseline():
                     """INSERT INTO Cruising_Logs 
                     (vehicle_id, scenario, search_time_sec, cruising_distance_m, total_fuel_mg, final_spot_id) 
                     VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (vid, "Baseline", search_time, cruise_dist, total_fuel, None),
+                )
+        conn.commit()
+
+    print(
+        f"🏁 场景 A 仿真结束。当前时间步: {current_time}。共成功记录 {completed_vehicles} 辆车的数据。"
+    )
+    traci.close()
+    cursor.close()
+    conn.close()
+
+
+if __name__ == "__main__":
+    run_baseline()
+                 VALUES (%s, %s, %s, %s, %s, %s)""",
                     (vid, "Baseline", search_time, cruise_dist, total_fuel, None),
                 )
         conn.commit()
