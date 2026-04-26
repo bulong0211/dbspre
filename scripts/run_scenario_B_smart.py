@@ -8,6 +8,7 @@ import traci
 import traci.constants as tc
 import traci.exceptions
 from connection import get_db_connection
+from reset_db import reset_database
 
 # -----------------------------------------------------------------------------
 # 环境配置与依赖设置
@@ -31,6 +32,9 @@ def run_smart_booking_with_pricing():
     运行智能预订与动态定价场景的仿真。
     管理与数据库的交互、车位定价计算和基于成本优化的车辆泊位分配。
     """
+    print("🔄 准备仿真环境...")
+    reset_database(clear_logs=False)
+    
     print("🔌 正在连接数据库...")
     conn = get_db_connection()  # type: ignore
     cursor = conn.cursor()

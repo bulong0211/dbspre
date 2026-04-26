@@ -7,6 +7,7 @@ import traci
 import traci.constants as tc
 import traci.exceptions
 from connection import get_db_connection
+from reset_db import reset_database
 
 # -----------------------------------------------------------------------------
 # 环境配置与依赖设置
@@ -30,6 +31,9 @@ def run_baseline():
     运行无预订模式（基线场景 A）的停车仿真。
     车辆在路网中盲目寻找可用车位，记录寻找过程中的巡航时间及燃油消耗。
     """
+    print("🔄 准备仿真环境...")
+    reset_database(clear_logs=True)
+    
     print("🔌 正在连接数据库...")
     conn = get_db_connection()
     cursor = conn.cursor()

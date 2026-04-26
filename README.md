@@ -138,13 +138,10 @@ uv run scripts/prepare_simulation.py
 ### 4. Run Simulations (运行对比仿真)
 仿真分为场景 A (基准) 和场景 B (智能版)，运行过程中会自动将交互数据和车辆巡航时间/油耗沉淀到数据库中。
 ```bash
-# 运行场景 A：传统盲目寻车模式
+# 运行场景 A：传统盲目寻车模式（启动时自动清空历史日志并重置车位）
 uv run scripts/run_scenario_A_baseline.py
 
-# 运行前重置数据库车位状态（避免影响下次仿真）
-uv run scripts/reset_db.py
-
-# 运行场景 B：智能预订与动态定价模式
+# 运行场景 B：智能预订与动态定价模式（启动时自动重置车位状态）
 uv run scripts/run_scenario_B_smart.py
 ```
 
@@ -164,7 +161,7 @@ uv run streamlit run scripts/run_dashboard.py
 - **`generate_traffic.py`**: 基于路网边界与核心区生成 2,500 辆驶向 CBD 的通勤车辆，并建立 `<trips>` 轨迹配置。
 - **`init_db.py`**: 连接 PostgreSQL，读取 `schema.sql` 完成表结构创建及车位初始数据的导入。
 - **`prepare_simulation.py`**: 仿真实验前的一键准备脚本，顺序封装执行了生成路网、停车位、交通流及数据库初始化的操作。
-- **`reset_db.py`**: 用于在不同阶段重置车位状态到未占用，提供 `--all` 标志时清空仿真日志。
+- **`reset_db.py`**: 用于重置车位状态到未占用，并可选择清空仿真日志，现已嵌入到仿真脚本中自动调用。
 - **`run_scenario_A_baseline.py`**: 基于 TraCI 的无引导仿真，车辆盲目随机驶向路网尝试停车，满员即触发继续巡航，并全量记录轨迹与燃油损失。
 - **`run_scenario_B_smart.py`**: 智能核心控制流；引入全局数据库字典。根据车位供需 (`>90%` 占用率) 调整浪涌价格，并用综合惩罚函数（距离 + 价格）为新入网车辆预分配车位，消除找位巡航。
-- **`run_dashboard.py`**: 基于 `Streamlit` 和 `Plotly` 的可视化面板，对比两大场景的耗时、死锁车辆数及系统级节油效益。
+- **`run_dashboard.py`**: 基于 `Streamlit` 和 `Plotly` 的可视化面板，对比两大场景的耗时、死锁车辆数及系统级节油效益。�系统级节油效益。
