@@ -29,21 +29,24 @@ def render_worker(queue: mp.Queue, title: str) -> None:
 
     # 定义子图
     (line_cruise,) = axs[0, 0].plot([], [], "r-", label="游荡车辆")
-    axs[0, 0].set_title("🚗 实时游荡/寻车数")
+    axs[0, 0].set_title("实时游荡/寻车数")
     axs[0, 0].set_ylabel("车辆数")
+    axs[0, 0].set_xlabel("仿真步长")
 
     (line_parked,) = axs[0, 1].plot([], [], "g-", label="成功停泊")
-    axs[0, 1].set_title("✅ 累计成功停泊数")
+    axs[0, 1].set_title("累计成功停泊数")
+    axs[0, 1].set_xlabel("仿真步长")
 
     (line_total_cruise,) = axs[0, 2].plot([], [], "m-", label="巡航总距离")
-    axs[0, 2].set_title("🛣️ 巡航总距离 (米)")
+    axs[0, 2].set_title("巡航总距离 (km)")
+    axs[0, 2].set_xlabel("仿真步长")
 
     (line_time,) = axs[1, 0].plot([], [], "b-", label="平均耗时")
-    axs[1, 0].set_title("⏱️ 平均寻车耗时 (秒)")
+    axs[1, 0].set_title("平均寻车耗时 (s)")
     axs[1, 0].set_xlabel("仿真步长")
 
     (line_fuel,) = axs[1, 1].plot([], [], "k-", label="累计油耗")
-    axs[1, 1].set_title("🛢️ 系统累计总油耗 (克)")
+    axs[1, 1].set_title("系统累计总油耗 (kg)")
     axs[1, 1].set_xlabel("仿真步长")
 
     # 移除不需要的子图
@@ -117,15 +120,16 @@ class MultiprocessingPlotter:
             if parked_count > 0
             else 0
         )
-        # 计算总油耗 (mg -> g)
-        total_fuel = sum(v.get("total_fuel", 0) for v in veh_stats.values()) / 1000.0
+        # 计算总油耗 (mg -> kg)
+        total_fuel = sum(v.get("total_fuel", 0) for v in veh_stats.values()) / 1000000.0
 
-        # a. 巡航总距离
+        # a. 巡航总距离 (m -> km)
         total_cruise_dist = 0.0
         for v in veh_stats.values():
             start_dist = v.get("cruise_start_dist")
             if start_dist is not None:
                 total_cruise_dist += max(0.0, v.get("last_dist", 0.0) - start_dist)
+        total_cruise_dist /= 1000.0
 
         payload = {
             "step": step,
