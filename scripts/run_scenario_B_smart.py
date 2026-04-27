@@ -9,6 +9,7 @@ import traci
 import traci.constants as tc
 import traci.exceptions
 from connection import get_db_connection
+from monitor import MultiprocessingPlotter
 from reset_db import reset_database
 
 # -----------------------------------------------------------------------------
@@ -78,6 +79,8 @@ def run_smart_booking_with_pricing():
 
     current_time = 0
     last_track_time = 0.0
+
+    plotter = MultiprocessingPlotter("场景 B - 智能预订监控面板")
 
     # 距离和价格的权重系数
     WEIGHT_DISTANCE = 1.0
@@ -311,6 +314,8 @@ def run_smart_booking_with_pricing():
                 except traci.exceptions.TraCIException:
                     pass
 
+        plotter.send_data(int(current_time), veh_stats)
+
         # 验证结束条件：全量车辆处理完毕
         if (completed_vehicles + teleported_vehicles) == TOTAL_VEHICLES:
             h = int(current_time // 3600)  # type: ignore
@@ -350,6 +355,7 @@ def run_smart_booking_with_pricing():
         f"🏁 场景 B (定价版) 仿真结束。当前时间步: {current_time}。共记录 {completed_vehicles} 辆车。"
     )
     traci.close()
+    plotter.close()
     cursor.close()
     conn.close()
 
