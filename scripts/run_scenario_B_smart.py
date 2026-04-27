@@ -71,8 +71,6 @@ def run_smart_booking_with_pricing():
     total_tracked = 0
 
     veh_stats = {}
-    fuel_tracker = {}
-    dist_tracker = {}
 
     completed_vehicles = 0
     teleported_vehicles = 0
@@ -226,6 +224,8 @@ def run_smart_booking_with_pricing():
                         "status": "driving",
                         "target_spot": best_spot,
                         "spawn_time": current_time,
+                        "total_fuel": 0.0,
+                        "last_dist": 0.0,
                     }
                 except traci.exceptions.TraCIException:
                     pass
@@ -243,8 +243,8 @@ def run_smart_booking_with_pricing():
                     teleported_vehicles += 1
 
                     search_time = current_time - stats["spawn_time"]
-                    last_dist = dist_tracker.get(vid, 0)
-                    total_fuel = fuel_tracker.get(vid, 0)
+                    last_dist = stats.get("last_dist", 0.0)
+                    total_fuel = stats.get("total_fuel", 0.0)
 
                     cruise_dist = (
                         last_dist - stats["cruise_start_dist"]
@@ -274,11 +274,8 @@ def run_smart_booking_with_pricing():
                 current_fuel = data[tc.VAR_FUELCONSUMPTION]
                 current_dist = data[tc.VAR_DISTANCE]
 
-                dist_tracker[vid] = current_dist
-
-                if vid not in fuel_tracker:
-                    fuel_tracker[vid] = 0
-                fuel_tracker[vid] += current_fuel
+                stats["last_dist"] = current_dist
+                stats["total_fuel"] = stats.get("total_fuel", 0.0) + current_fuel
 
                 try:
                     # 判断车辆是否已在目标车位停止并进行结算
@@ -287,7 +284,7 @@ def run_smart_booking_with_pricing():
                         stats["status"] = "parked"
 
                         search_time = current_time - stats["spawn_time"]
-                        total_fuel = fuel_tracker.get(vid, 0)
+                        total_fuel = stats.get("total_fuel", 0.0)
 
                         # 如果当前车辆是被重点追踪的主角，则打印最终历程报告
                         if vid == current_protagonist:
@@ -295,8 +292,6 @@ def run_smart_booking_with_pricing():
                             msg += f"   ✅ 最终落脚点: {target_spot}"
                             traci.simulation.writeMessage(msg)
                             current_protagonist = None
-
-                        traci.vehicle.setColor(vid, (0, 0, 0, 255))
 
                         cursor.execute(
                             """INSERT INTO Cruising_Logs 
@@ -332,12 +327,6 @@ def run_smart_booking_with_pricing():
 
         # 每隔 60 秒刷新数据库状态同步信息
         if current_time % 60 == 0:  # type: ignore
-            veh_stats = {
-                k: v
-                for k, v in veh_stats.items()
-                if v["status"] not in ["parked", "teleported"]
-            }
-
             sync_data = [
                 (d["booked"], d["current_price"], sid) for sid, d in all_spots.items()
             ]

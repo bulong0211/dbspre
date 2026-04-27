@@ -8,6 +8,7 @@ import traci
 import traci.constants as tc
 import traci.exceptions
 from connection import get_db_connection
+from monitor import MultiprocessingPlotter
 from reset_db import reset_database
 
 # -----------------------------------------------------------------------------
@@ -56,8 +57,6 @@ def run_baseline():
     protagonist_search_history = []
 
     veh_stats = {}
-    fuel_tracker = {}
-    dist_tracker = {}
 
     completed_vehicles = 0
     teleported_vehicles = 0
@@ -66,6 +65,7 @@ def run_baseline():
     current_time = 0
     last_track_time = 0.0
 
+    plotter = MultiprocessingPlotter("场景 A - 无预订基线监控面板")
     # -------------------------------------------------------------------------
     # 主仿真循环，时限设定为 7200 秒
     # -------------------------------------------------------------------------
@@ -144,8 +144,11 @@ def run_baseline():
                     "status": "driving",
                     "target_spot": initial_spot,
                     "spawn_time": current_time,
+                    "search_time": 0.0,
                     "cruise_start_dist": None,
                     "failed_targets": set(),
+                    "total_fuel": 0.0,
+                    "last_dist": 0.0,
                 }
             except traci.exceptions.TraCIException:
                 pass
@@ -163,8 +166,8 @@ def run_baseline():
                     teleported_vehicles += 1
 
                     search_time = current_time - stats["spawn_time"]
-                    last_dist = dist_tracker.get(vid, 0)
-                    total_fuel = fuel_tracker.get(vid, 0)
+                    last_dist = stats.get("last_dist", 0.0)
+                    total_fuel = stats.get("total_fuel", 0.0)
 
                     cruise_dist = (
                         last_dist - stats["cruise_start_dist"]
@@ -193,11 +196,8 @@ def run_baseline():
                 current_dist = data[tc.VAR_DISTANCE]
                 current_edge = data[tc.VAR_ROAD_ID]
 
-                dist_tracker[vid] = current_dist
-
-                if vid not in fuel_tracker:
-                    fuel_tracker[vid] = 0
-                fuel_tracker[vid] += current_fuel
+                stats["last_dist"] = current_dist
+                stats["total_fuel"] = stats.get("total_fuel", 0.0) + current_fuel
 
                 try:
                     # 识别成功泊入的车辆并上报数据
@@ -207,12 +207,13 @@ def run_baseline():
                         stats["status"] = "parked"
 
                         search_time = current_time - stats["spawn_time"]
+                        stats["search_time"] = search_time
                         cruise_dist = (
                             current_dist - stats["cruise_start_dist"]
                             if stats["cruise_start_dist"]
                             else 0
                         )
-                        total_fuel = fuel_tracker.get(vid, 0)
+                        total_fuel = stats.get("total_fuel", 0.0)
 
                         # 如果当前车辆是被重点追踪的主角，则打印最终历程报告
                         if vid == current_protagonist:
@@ -229,8 +230,6 @@ def run_baseline():
                             msg += f"   ✅ 最终落脚点: {final_spot}"
                             traci.simulation.writeMessage(msg)
                             current_protagonist = None
-
-                        traci.vehicle.setColor(vid, (0, 0, 0, 255))
 
                         cursor.execute(
                             """INSERT INTO Cruising_Logs 
@@ -272,9 +271,6 @@ def run_baseline():
                                 traci.simulation.writeMessage(
                                     f"  ❌ [第 {attempt_num} 次失败] {vid} 到达 {failed_spot}，但车位已被抢占！"
                                 )
-                                traci.vehicle.setColor(
-                                    current_protagonist, (255, 0, 0, 255)
-                                )
 
                             traci.vehicle.setParkingAreaStop(
                                 vid, target_spot, duration=0
@@ -308,11 +304,13 @@ def run_baseline():
                 except traci.exceptions.TraCIException:
                     pass
 
+        plotter.send_data(int(current_time), veh_stats)
+
         # 验证结束条件：全量车辆处理完毕
         if (completed_vehicles + teleported_vehicles) == TOTAL_VEHICLES:
-            h = int(current_time // 3600)  # type: ignore
-            m = int((current_time % 3600) // 60)  # type: ignore
-            s = int(current_time % 60)  # type: ignore
+            h = int(current_time // 3600)
+            m = int((current_time % 3600) // 60)
+            s = int(current_time % 60)
 
             print("\n" + "✨" * 30)
             print("🎉 提前完赛！系统已达到 100% 处理率。")
@@ -324,12 +322,6 @@ def run_baseline():
 
         # 每隔 60 秒刷新数据库状态同步信息
         if current_time % 60 == 0:
-            veh_stats = {
-                k: v
-                for k, v in veh_stats.items()
-                if v["status"] not in ["parked", "teleported"]
-            }
-
             sync_data = [(d["occupied"], sid) for sid, d in all_spots.items()]
             cursor.executemany(
                 "UPDATE Parking_Spots SET occupied = %s WHERE spot_id = %s",
@@ -359,7 +351,7 @@ def run_baseline():
                     if stats["cruise_start_dist"]
                     else 0
                 )
-                total_fuel = fuel_tracker.get(vid, 0)
+                total_fuel = stats.get("total_fuel", 0.0)
 
                 cursor.execute(
                     """INSERT INTO Cruising_Logs 
@@ -373,6 +365,7 @@ def run_baseline():
         f"🏁 场景 A 仿真结束。当前时间步: {current_time}。共成功记录 {completed_vehicles} 辆车的数据。"
     )
     traci.close()
+    plotter.close()
     cursor.close()
     conn.close()
 
