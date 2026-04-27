@@ -3,7 +3,7 @@ import sys
 from connection import get_db_connection
 
 
-def reset_database(clear_logs=False):
+def reset_database(clear_logs=False, scenario_to_clear=None):
     """
     数据库状态重置工具。
     在仿真开始前还原停车位的初始状态，并根据参数决定是否清空历史仿真日志数据。
@@ -11,6 +11,7 @@ def reset_database(clear_logs=False):
     Args:
         clear_logs (bool): 若为 True，则彻底清空 cruising_Logs 日志表并重置其主键序列；
                            若为 False，则仅将 Parking_Spots 表的状态和价格恢复为基础设置。
+        scenario_to_clear (str): 若提供且 clear_logs 为 False，则清除指定场景的日志数据。
     """
     print("🔌 正在连接数据库...")
     try:
@@ -21,6 +22,9 @@ def reset_database(clear_logs=False):
         if clear_logs:
             print("🧹 正在彻底清空 cruising_Logs 仿真日志表...")
             cursor.execute("TRUNCATE TABLE cruising_Logs RESTART IDENTITY;")
+        elif scenario_to_clear:
+            print(f"🧹 正在清空 cruising_Logs 中 {scenario_to_clear} 场景的日志...")
+            cursor.execute("DELETE FROM Cruising_Logs WHERE scenario = %s;", (scenario_to_clear,))
         else:
             print("⏭️ 跳过清空日志，仅重置停车场表。")
 

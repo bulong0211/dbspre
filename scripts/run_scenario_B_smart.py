@@ -35,7 +35,7 @@ def run_smart_booking_with_pricing():
     管理与数据库的交互、车位定价计算和基于成本优化的车辆泊位分配。
     """
     print("🔄 准备仿真环境...")
-    reset_database(clear_logs=False)
+    reset_database(clear_logs=False, scenario_to_clear="Smart_Booking_Priced")
 
     print("🔌 正在连接数据库...")
     conn = get_db_connection()  # type: ignore
@@ -227,6 +227,7 @@ def run_smart_booking_with_pricing():
                         "status": "driving",
                         "target_spot": best_spot,
                         "spawn_time": current_time,
+                        "search_time": 0.0,
                         "total_fuel": 0.0,
                         "last_dist": 0.0,
                     }
@@ -246,6 +247,7 @@ def run_smart_booking_with_pricing():
                     teleported_vehicles += 1
 
                     search_time = current_time - stats["spawn_time"]
+                    stats["search_time"] = search_time
                     last_dist = stats.get("last_dist", 0.0)
                     total_fuel = stats.get("total_fuel", 0.0)
 
@@ -287,6 +289,7 @@ def run_smart_booking_with_pricing():
                         stats["status"] = "parked"
 
                         search_time = current_time - stats["spawn_time"]
+                        stats["search_time"] = search_time
                         total_fuel = stats.get("total_fuel", 0.0)
 
                         # 如果当前车辆是被重点追踪的主角，则打印最终历程报告
