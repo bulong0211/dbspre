@@ -166,6 +166,7 @@ def run_baseline():
                     teleported_vehicles += 1
 
                     search_time = current_time - stats["spawn_time"]
+                    stats["search_time"] = search_time
                     last_dist = stats.get("last_dist", 0.0)
                     total_fuel = stats.get("total_fuel", 0.0)
 
@@ -346,6 +347,7 @@ def run_baseline():
         for vid, stats in veh_stats.items():
             if stats["status"] in ["driving", "cruising"]:
                 search_time = current_time - stats["spawn_time"]
+                stats["search_time"] = search_time
                 cruise_dist = (
                     traci.vehicle.getDistance(vid) - stats["cruise_start_dist"]
                     if stats["cruise_start_dist"]
