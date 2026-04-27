@@ -84,6 +84,7 @@ dbspre/
 │   ├── generate_parking.py      # 生成车位几何分布并输出 XML 与 SQL 的脚本
 │   ├── generate_traffic.py      # 自动生成通勤交通流的脚本
 │   ├── init_db.py               # 执行 SQL 脚本，初始化并灌入路网停车数据的脚本
+│   ├── monitor.py               # 可视化监控与图表绘制代理类，独立进程渲染
 │   ├── prepare_simulation.py    # 一键准备脚本，顺序执行生成路网、停车位、交通流及数据库初始化的操作
 │   ├── reset_db.py              # 重置数据库状态，清空历史日志
 │   ├── run_dashboard.py         # 启动基于 Streamlit 的数据可视化分析看板
