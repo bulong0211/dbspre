@@ -5,11 +5,15 @@ import plotly.graph_objects as go
 import streamlit as st
 from connection import get_db_connection
 
-warnings.filterwarnings("ignore")
 # -----------------------------------------------------------------------------
 # Streamlit 页面基础配置
 # -----------------------------------------------------------------------------
-st.set_page_config(page_title="ITS 智能停车效能评估", page_icon="🚗", layout="wide")
+st.set_page_config(
+    page_title="Smart Parking Performance Dashboard", page_icon="🚗", layout="wide"
+)
+
+# 忽略所有警告信息
+warnings.filterwarnings("ignore")
 
 
 @st.cache_data(ttl=5)
@@ -55,8 +59,8 @@ def fetch_data():
 # -----------------------------------------------------------------------------
 # 仪表盘主视图渲染逻辑
 # -----------------------------------------------------------------------------
-st.title("🚗 城市级智能停车系统 (ITS) 仿真效能大屏")
-st.markdown("基于 SUMO 微观交通仿真与 PostgreSQL 数据聚合的全生命周期评估")
+st.title("🚗 Smart Parking Performance Dashboard")
+st.markdown("基于 SUMO 交通仿真与 PostgreSQL 数据库的性能评估")
 
 df = fetch_data()
 
@@ -86,29 +90,29 @@ else:
 
     with col1:
         st.metric(
-            label="成功泊入率 (智能模式)",
+            label="成功泊入率",
             value=f"{success_B:.1f}%",
-            delta=f"{success_B - success_A:.1f}% (相比场景A)",
+            delta=f"{success_B - success_A:.1f}% （相比场景 A）",
         )
     with col2:
         st.metric(
             label="全局平均寻车耗时",
             value=f"{row_B['avg_search_all']:.1f} 秒",
-            delta=f"{row_B['avg_search_all'] - row_A['avg_search_all']:.1f} 秒",
+            delta=f"{row_B['avg_search_all'] - row_A['avg_search_all']:.1f} 秒 （相比场景 A）",
             delta_color="inverse",
         )
     with col3:
         st.metric(
-            label="系统总油耗 (碳排)",
+            label="系统总油耗",
             value=f"{row_B['total_fuel_kg']:.2f} kg",
-            delta=f"{row_B['total_fuel_kg'] - row_A['total_fuel_kg']:.2f} kg",
+            delta=f"{row_B['total_fuel_kg'] - row_A['total_fuel_kg']:.2f} kg （相比场景 A）",
             delta_color="inverse",
         )
     with col4:
         st.metric(
             label="无效巡航里程",
             value=f"{row_B['total_dist_km']:.1f} km",
-            delta=f"{-row_A['total_dist_km']:.1f} km",
+            delta=f"{-row_A['total_dist_km']:.1f} km （相比场景 A）",
             delta_color="inverse",
         )
 
