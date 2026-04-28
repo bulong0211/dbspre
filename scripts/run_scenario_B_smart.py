@@ -220,7 +220,7 @@ def run_smart_booking_with_pricing():
                     traci.vehicle.changeTarget(vid, edge_id)
                     traci.vehicle.setParkingAreaStop(vid, best_spot, duration=360000.0)
                     traci.vehicle.subscribe(
-                        vid, [tc.VAR_FUELCONSUMPTION, tc.VAR_DISTANCE]
+                        vid, [tc.VAR_FUELCONSUMPTION, tc.VAR_DISTANCE, tc.VAR_SPEED]
                     )
 
                     veh_stats[vid] = {
@@ -278,9 +278,11 @@ def run_smart_booking_with_pricing():
                 data = sub_results[vid]
                 current_fuel = data[tc.VAR_FUELCONSUMPTION]
                 current_dist = data[tc.VAR_DISTANCE]
+                current_speed = data[tc.VAR_SPEED]
 
                 stats["last_dist"] = current_dist
                 stats["total_fuel"] = stats.get("total_fuel", 0.0) + current_fuel
+                stats["speed"] = current_speed
 
                 try:
                     # 判断车辆是否已在目标车位停止并进行结算

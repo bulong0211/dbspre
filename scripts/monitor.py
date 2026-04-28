@@ -25,7 +25,7 @@ def render_worker(queue: mp.Queue, title: str) -> None:
 
     # 初始化数据容器
     steps, cruise_y, parked_y, time_y, fuel_y = [], [], [], [], []
-    total_cruise_dist_y = []
+    total_cruise_dist_y, avg_speed_y = [], []
 
     # 定义子图
     (line_cruise,) = axs[0, 0].plot([], [], "r-", label="游荡车辆")
@@ -49,10 +49,11 @@ def render_worker(queue: mp.Queue, title: str) -> None:
     axs[1, 1].set_title("系统累计总油耗 (kg)")
     axs[1, 1].set_xlabel("仿真步长")
 
-    # 移除不需要的子图
-    fig.delaxes(axs[1, 2])
+    (line_speed,) = axs[1, 2].plot([], [], "c-", label="平均速度")
+    axs[1, 2].set_title("路网平均速度 (m/s)")
+    axs[1, 2].set_xlabel("仿真步长")
 
-    active_axs = [axs[0, 0], axs[0, 1], axs[0, 2], axs[1, 0], axs[1, 1]]
+    active_axs = [axs[0, 0], axs[0, 1], axs[0, 2], axs[1, 0], axs[1, 1], axs[1, 2]]
 
     for ax in active_axs:
         ax.grid(True, linestyle="--", alpha=0.5)
@@ -72,6 +73,7 @@ def render_worker(queue: mp.Queue, title: str) -> None:
             time_y.append(data["avg_time"])
             fuel_y.append(data["fuel"])
             total_cruise_dist_y.append(data.get("total_cruise_dist", 0))
+            avg_speed_y.append(data.get("avg_speed", 0))
 
             # 动态更新 LineData
             line_cruise.set_data(steps, cruise_y)
@@ -79,6 +81,7 @@ def render_worker(queue: mp.Queue, title: str) -> None:
             line_time.set_data(steps, time_y)
             line_fuel.set_data(steps, fuel_y)
             line_total_cruise.set_data(steps, total_cruise_dist_y)
+            line_speed.set_data(steps, avg_speed_y)
 
             # 自动调整坐标轴
             for ax in active_axs:
@@ -131,6 +134,10 @@ class MultiprocessingPlotter:
                 total_cruise_dist += max(0.0, v.get("last_dist", 0.0) - start_dist)
         total_cruise_dist /= 1000.0
 
+        # 计算路网平均速度 (m/s)
+        active_veh = [v for v in veh_stats.values() if v.get("status") in ["driving", "cruising"]]
+        avg_speed = sum(v.get("speed", 0.0) for v in active_veh) / len(active_veh) if active_veh else 0.0
+
         payload = {
             "step": step,
             "cruising": cruising,
@@ -138,6 +145,7 @@ class MultiprocessingPlotter:
             "avg_time": avg_time,
             "fuel": total_fuel,
             "total_cruise_dist": total_cruise_dist,
+            "avg_speed": avg_speed,
         }
         try:
             self.queue.put_nowait(payload)

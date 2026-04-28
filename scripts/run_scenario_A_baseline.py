@@ -137,7 +137,7 @@ def run_baseline():
                 traci.vehicle.setParkingAreaStop(vid, initial_spot, duration=360000)
 
                 traci.vehicle.subscribe(
-                    vid, [tc.VAR_FUELCONSUMPTION, tc.VAR_DISTANCE, tc.VAR_ROAD_ID]
+                    vid, [tc.VAR_FUELCONSUMPTION, tc.VAR_DISTANCE, tc.VAR_ROAD_ID, tc.VAR_SPEED]
                 )
 
                 veh_stats[vid] = {
