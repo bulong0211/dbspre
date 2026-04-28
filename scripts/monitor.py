@@ -1,15 +1,16 @@
 import multiprocessing as mp
+import queue
 from typing import Dict
 
 import matplotlib
 import matplotlib.pyplot as plt
 
 
-def render_worker(queue: mp.Queue, title: str) -> None:
+def render_worker(q: mp.Queue, title: str) -> None:
     """
     [独立子进程] 负责 Matplotlib 实时渲染。
     """
-    # 1. 解决中文乱码问题
+    # 解决中文乱码问题
     plt.rcParams["font.sans-serif"] = [
         "SimHei",
         "Microsoft YaHei",
@@ -20,7 +21,7 @@ def render_worker(queue: mp.Queue, title: str) -> None:
     matplotlib.use("TkAgg")
 
     plt.ion()
-    fig, axs = plt.subplots(2, 3, figsize=(15, 8))
+    fig, axs = plt.subplots(2, 3, figsize=(9.6, 10.8))
     fig.suptitle(title, fontsize=16, fontweight="bold")
 
     # 初始化数据容器
@@ -62,35 +63,52 @@ def render_worker(queue: mp.Queue, title: str) -> None:
 
     while True:
         try:
-            data = queue.get(timeout=1.0)
-            if data == "STOP":
+            data = q.get(timeout=1.0)
+            
+            # 批量处理队列中所有积压的数据以避免渲染延迟
+            batch = [data]
+            while True:
+                try:
+                    d = q.get_nowait()
+                    batch.append(d)
+                except queue.Empty:
+                    break
+            
+            stop_received = False
+            for d in batch:
+                if d == "STOP":
+                    stop_received = True
+                    continue
+
+                # 更新数据
+                steps.append(d["step"])
+                cruise_y.append(d["cruising"])
+                parked_y.append(d["parked"])
+                time_y.append(d["avg_time"])
+                fuel_y.append(d["fuel"])
+                total_cruise_dist_y.append(d.get("total_cruise_dist", 0))
+                avg_speed_y.append(d.get("avg_speed", 0))
+
+            if steps:
+                # 动态更新 LineData
+                line_cruise.set_data(steps, cruise_y)
+                line_parked.set_data(steps, parked_y)
+                line_time.set_data(steps, time_y)
+                line_fuel.set_data(steps, fuel_y)
+                line_total_cruise.set_data(steps, total_cruise_dist_y)
+                line_speed.set_data(steps, avg_speed_y)
+
+                # 自动调整坐标轴
+                for ax in active_axs:
+                    ax.relim()
+                    ax.autoscale_view()
+
+                fig.canvas.draw()
+                fig.canvas.flush_events()
+            
+            if stop_received:
                 break
-
-            # 更新数据
-            steps.append(data["step"])
-            cruise_y.append(data["cruising"])
-            parked_y.append(data["parked"])
-            time_y.append(data["avg_time"])
-            fuel_y.append(data["fuel"])
-            total_cruise_dist_y.append(data.get("total_cruise_dist", 0))
-            avg_speed_y.append(data.get("avg_speed", 0))
-
-            # 动态更新 LineData
-            line_cruise.set_data(steps, cruise_y)
-            line_parked.set_data(steps, parked_y)
-            line_time.set_data(steps, time_y)
-            line_fuel.set_data(steps, fuel_y)
-            line_total_cruise.set_data(steps, total_cruise_dist_y)
-            line_speed.set_data(steps, avg_speed_y)
-
-            # 自动调整坐标轴
-            for ax in active_axs:
-                ax.relim()
-                ax.autoscale_view()
-
-            fig.canvas.draw()
-            fig.canvas.flush_events()
-        except mp.queues.Empty:
+        except queue.Empty:
             continue
         except Exception:
             break
@@ -105,7 +123,7 @@ class MultiprocessingPlotter:
     """
 
     def __init__(self, window_title: str):
-        self.queue = mp.Queue(maxsize=100)
+        self.queue = mp.Queue(maxsize=1000)
         self.process = mp.Process(target=render_worker, args=(self.queue, window_title))
         self.process.start()
 
@@ -135,8 +153,14 @@ class MultiprocessingPlotter:
         total_cruise_dist /= 1000.0
 
         # 计算路网平均速度 (m/s)
-        active_veh = [v for v in veh_stats.values() if v.get("status") in ["driving", "cruising"]]
-        avg_speed = sum(v.get("speed", 0.0) for v in active_veh) / len(active_veh) if active_veh else 0.0
+        active_veh = [
+            v for v in veh_stats.values() if v.get("status") in ["driving", "cruising"]
+        ]
+        avg_speed = (
+            sum(v.get("speed", 0.0) for v in active_veh) / len(active_veh)
+            if active_veh
+            else 0.0
+        )
 
         payload = {
             "step": step,
@@ -149,9 +173,10 @@ class MultiprocessingPlotter:
         }
         try:
             self.queue.put_nowait(payload)
-        except mp.queues.Full:
+        except queue.Full:
             pass
 
     def close(self):
         self.queue.put("STOP")
         self.process.join()
+
