@@ -36,22 +36,27 @@ def render_worker(q: mp.Queue, title: str) -> None:
 
     (line_parked,) = axs[0, 1].plot([], [], "g-", label="成功停泊")
     axs[0, 1].set_title("累计成功停泊数")
+    axs[0, 1].set_ylabel("停泊数")
     axs[0, 1].set_xlabel("仿真步长")
 
     (line_total_cruise,) = axs[0, 2].plot([], [], "m-", label="巡航总距离")
     axs[0, 2].set_title("巡航总距离 (km)")
+    axs[0, 2].set_ylabel("距离 (km)")
     axs[0, 2].set_xlabel("仿真步长")
 
     (line_time,) = axs[1, 0].plot([], [], "b-", label="平均耗时")
     axs[1, 0].set_title("平均寻车耗时 (s)")
+    axs[1, 0].set_ylabel("时间 (s)")
     axs[1, 0].set_xlabel("仿真步长")
 
     (line_fuel,) = axs[1, 1].plot([], [], "k-", label="累计油耗")
     axs[1, 1].set_title("系统累计总油耗 (kg)")
+    axs[1, 1].set_ylabel("油耗 (kg)")
     axs[1, 1].set_xlabel("仿真步长")
 
     (line_speed,) = axs[1, 2].plot([], [], "c-", label="平均速度")
     axs[1, 2].set_title("路网平均速度 (m/s)")
+    axs[1, 2].set_ylabel("速度 (m/s)")
     axs[1, 2].set_xlabel("仿真步长")
 
     active_axs = [axs[0, 0], axs[0, 1], axs[0, 2], axs[1, 0], axs[1, 1], axs[1, 2]]
@@ -64,7 +69,7 @@ def render_worker(q: mp.Queue, title: str) -> None:
     while True:
         try:
             data = q.get(timeout=1.0)
-            
+
             # 批量处理队列中所有积压的数据以避免渲染延迟
             batch = [data]
             while True:
@@ -73,7 +78,7 @@ def render_worker(q: mp.Queue, title: str) -> None:
                     batch.append(d)
                 except queue.Empty:
                     break
-            
+
             stop_received = False
             for d in batch:
                 if d == "STOP":
@@ -105,7 +110,7 @@ def render_worker(q: mp.Queue, title: str) -> None:
 
                 fig.canvas.draw()
                 fig.canvas.flush_events()
-            
+
             if stop_received:
                 break
         except queue.Empty:
@@ -133,18 +138,22 @@ class MultiprocessingPlotter:
         """
         # 计算游荡数
         cruising = sum(1 for v in veh_stats.values() if v.get("status") == "cruising")
+
         # 计算已停车相关指标
         parked_v = [v for v in veh_stats.values() if v.get("status") == "parked"]
         parked_count = len(parked_v)
+
+        # 计算平均寻车耗时
         avg_time = (
             sum(v.get("search_time", 0) for v in parked_v) / parked_count
             if parked_count > 0
             else 0
         )
+
         # 计算总油耗 (mg -> kg)
         total_fuel = sum(v.get("total_fuel", 0) for v in veh_stats.values()) / 1000000.0
 
-        # a. 巡航总距离 (m -> km)
+        # 计算巡航总距离 (m -> km)
         total_cruise_dist = 0.0
         for v in veh_stats.values():
             start_dist = v.get("cruise_start_dist")
@@ -179,4 +188,3 @@ class MultiprocessingPlotter:
     def close(self):
         self.queue.put("STOP")
         self.process.join()
-

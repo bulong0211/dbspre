@@ -65,7 +65,7 @@ def run_baseline():
     current_time = 0
     last_track_time = 0.0
 
-    plotter = MultiprocessingPlotter("场景 A - 无预订基线监控面板")
+    plotter = MultiprocessingPlotter("场景 A - 无预订监控面板")
     # -------------------------------------------------------------------------
     # 主仿真循环，时限设定为 7200 秒
     # -------------------------------------------------------------------------
@@ -155,6 +155,7 @@ def run_baseline():
                     "failed_targets": set(),
                     "total_fuel": 0.0,
                     "last_dist": 0.0,
+                    "speed": 0.0,
                 }
             except traci.exceptions.TraCIException:
                 pass
@@ -202,9 +203,11 @@ def run_baseline():
                 current_fuel = data[tc.VAR_FUELCONSUMPTION]
                 current_dist = data[tc.VAR_DISTANCE]
                 current_edge = data[tc.VAR_ROAD_ID]
+                current_speed = data[tc.VAR_SPEED]
 
                 stats["last_dist"] = current_dist
                 stats["total_fuel"] = stats.get("total_fuel", 0.0) + current_fuel
+                stats["speed"] = current_speed
 
                 try:
                     # 识别成功泊入的车辆并上报数据

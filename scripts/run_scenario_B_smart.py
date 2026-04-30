@@ -230,6 +230,7 @@ def run_smart_booking_with_pricing():
                         "search_time": 0.0,
                         "total_fuel": 0.0,
                         "last_dist": 0.0,
+                        "speed": 0.0,
                     }
                 except traci.exceptions.TraCIException:
                     pass
