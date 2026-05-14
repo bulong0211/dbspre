@@ -218,7 +218,6 @@ def run_baseline():
                 current_edge = data[tc.VAR_ROAD_ID]
                 current_speed = data[tc.VAR_SPEED]
                 current_pos = data[tc.VAR_POSITION]
-                current_lanepos = data.get(tc.VAR_LANEPOSITION, 0.0)
 
                 stats["last_dist"] = current_dist
                 stats["total_fuel"] = stats.get("total_fuel", 0.0) + current_fuel
@@ -414,21 +413,6 @@ def run_baseline():
                     (vehicle_id, scenario, search_time_sec, cruising_distance_m, total_fuel_mg, final_spot_id) 
                     VALUES (%s, %s, %s, %s, %s, %s)""",
                     (vid, "Baseline", search_time, cruise_dist, total_fuel, None),
-                )
-        conn.commit()
-
-    print(
-        f"🏁 场景 A 仿真结束。当前时间步: {current_time}。共成功记录 {completed_vehicles} 辆车的数据。"
-    )
-    traci.close()
-    plotter.close()
-    cursor.close()
-    conn.close()
-
-
-if __name__ == "__main__":
-    run_baseline()
-me, cruise_dist, total_fuel, None),
                 )
         conn.commit()
 
