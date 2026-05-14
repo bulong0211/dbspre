@@ -47,11 +47,13 @@ def run_baseline():
         row[0]: {"edge": row[1], "capacity": row[2], "occupied": 0}
         for row in cursor.fetchall()
     }
-    spot_ids = list(all_spots.keys())
-    
+
     # 提前解析路网，用于动态扩张搜索半径和识别CBD
     tree = ET.parse(CONFIG_DIR / "demo.net.xml")
-    nodes = {n.attrib["id"]: (float(n.attrib["x"]), float(n.attrib["y"])) for n in tree.getroot().findall("junction")}
+    nodes = {
+        n.attrib["id"]: (float(n.attrib["x"]), float(n.attrib["y"]))
+        for n in tree.getroot().findall("junction")
+    }
     all_edge_data = {}
     for edge in tree.getroot().findall("edge"):
         if "function" not in edge.attrib:
@@ -60,11 +62,10 @@ def run_baseline():
                 fx, fy = nodes[edge.attrib["from"]]
                 tx, ty = nodes[edge.attrib["to"]]
                 all_edge_data[eid] = {"tx": tx, "ty": ty, "fx": fx, "fy": fy}
-                
+
     spots_by_edge = {}
     for sid, sdata in all_spots.items():
         spots_by_edge.setdefault(sdata["edge"], []).append(sid)
-
 
     print("🚀 启动场景 A (无预订的盲目寻找模式) - 最大限时 2 小时...")
     traci.start(sumoCmd)
@@ -72,7 +73,6 @@ def run_baseline():
     # 全局跟踪及统计变量
     current_protagonist = None
     total_tracked = 0
-    protagonist_search_history = []
 
     veh_stats = {}
 
@@ -109,10 +109,9 @@ def run_baseline():
                     if struggling_candidates:
                         current_protagonist = random.choice(struggling_candidates)
                         total_tracked += 1
-                        protagonist_search_history = []
 
                         msg = "\n" + "=" * 60
-                        msg += f"🎬 [镜头切角] 锁定第 {total_tracked} 位司机: {current_protagonist} 的寻车之旅"
+                        msg += f"🎬 [镜头切角] 第 {total_tracked} 位司机: {current_protagonist} 的寻找车位"
                         msg += "=" * 60
                         traci.simulation.writeMessage(msg)
 
@@ -132,7 +131,7 @@ def run_baseline():
                 try:
                     tracked = traci.gui.getTrackedVehicle("View #0")
                     if tracked == "":
-                        if time.time() - last_track_time > 10.0:
+                        if time.time() - last_track_time > 20.0:
                             traci.gui.trackVehicle("View #0", current_protagonist)
                             traci.gui.setZoom("View #0", 2000)
                             last_track_time = time.time()
@@ -142,7 +141,7 @@ def run_baseline():
                     pass
 
         # ---------------------------------------------------------------------
-        # 新生成车辆的处理及初始车位分配
+        # 新生成车辆的处理
         # ---------------------------------------------------------------------
         for vid in traci.simulation.getDepartedIDList():
             try:
@@ -219,6 +218,7 @@ def run_baseline():
                 current_edge = data[tc.VAR_ROAD_ID]
                 current_speed = data[tc.VAR_SPEED]
                 current_pos = data[tc.VAR_POSITION]
+                current_lanepos = data.get(tc.VAR_LANEPOSITION, 0.0)
 
                 stats["last_dist"] = current_dist
                 stats["total_fuel"] = stats.get("total_fuel", 0.0) + current_fuel
@@ -232,7 +232,9 @@ def run_baseline():
                             all_spots[target_spot]["occupied"] += 1
                         stats["status"] = "parked"
 
-                        search_time = current_time - (stats.get("cruise_start_time") or stats["spawn_time"])
+                        search_time = current_time - (
+                            stats.get("cruise_start_time") or stats["spawn_time"]
+                        )
                         stats["search_time"] = search_time
                         cruise_dist = (
                             current_dist - stats["cruise_start_dist"]
@@ -242,14 +244,21 @@ def run_baseline():
                         total_fuel = stats.get("total_fuel", 0.0)
 
                         if vid == current_protagonist:
-                            msg = f"🎉 [追踪报告出炉] 司机 {current_protagonist} 终于停好了！\\n"
+                            msg = f"🎉 司机 {current_protagonist} 终于停好了！\\n"
                             msg += f"   ✅ 最终落脚点: {target_spot}"
                             traci.simulation.writeMessage(msg)
                             current_protagonist = None
 
                         cursor.execute(
                             "INSERT INTO Cruising_Logs (vehicle_id, scenario, search_time_sec, cruising_distance_m, total_fuel_mg, final_spot_id) VALUES (%s, %s, %s, %s, %s, %s)",
-                            (vid, "Baseline", search_time, cruise_dist, total_fuel, target_spot),
+                            (
+                                vid,
+                                "Baseline",
+                                search_time,
+                                cruise_dist,
+                                total_fuel,
+                                target_spot,
+                            ),
                         )
                         conn.commit()
 
@@ -266,15 +275,15 @@ def run_baseline():
                             # c. 模拟缓慢行驶、频繁刹车
                             traci.vehicle.setSpeedFactor(vid, 0.4)
                             traci.vehicle.setImperfection(vid, 0.9)
-                            
+
                     # 盲目寻找车位逻辑
                     if stats["status"] == "cruising":
                         # 检查当前或即将到达的edge是否有空车位（肉眼观察）
                         if not stats.get("target_spot"):
                             route = traci.vehicle.getRoute(vid)
                             route_idx = traci.vehicle.getRouteIndex(vid)
-                            upcoming_edges = route[route_idx:route_idx+2]
-                            
+                            upcoming_edges = route[route_idx : route_idx + 2]
+
                             found_spot = None
                             for edge in upcoming_edges:
                                 if edge in spots_by_edge:
@@ -282,53 +291,70 @@ def run_baseline():
                                     spots = spots_by_edge[edge].copy()
                                     random.shuffle(spots)
                                     for sid in spots:
-                                        if all_spots[sid]["occupied"] < all_spots[sid]["capacity"]:
+                                        if (
+                                            all_spots[sid]["occupied"]
+                                            < all_spots[sid]["capacity"]
+                                        ):
                                             found_spot = sid
                                             break
                                 if found_spot:
                                     break
-                                    
+
                             if found_spot:
                                 # 看到空车位，直接准备停入
                                 stats["target_spot"] = found_spot
-                                traci.vehicle.setParkingAreaStop(vid, found_spot, duration=360000)
+                                traci.vehicle.setParkingAreaStop(
+                                    vid, found_spot, duration=7200
+                                )
                             else:
                                 # 未找到空车位，检查是否快到目的地，如果是，则需要继续巡航（扩张搜索半径）
                                 if route_idx >= len(route) - 2:
-                                    cruise_time = current_time - stats.get("cruise_start_time", current_time)
+                                    cruise_time = current_time - stats.get(
+                                        "cruise_start_time", current_time
+                                    )
                                     # e. 随着时间增长逐步扩大搜索半径
-                                    # 假设每60秒扩大一圈(200m)，从7x7(600m)开始
-                                    steps = int(cruise_time // 60)
+                                    # 假设每5分钟扩大一圈(200m)，从7x7(600m)开始
+                                    steps = int(cruise_time // 300)
                                     radius = 600 + steps * 200
-                                    if radius > 1400: radius = 1400
-                                    
+                                    if radius > 1400:
+                                        radius = 1400
+
                                     min_x, max_x = 1400 - radius, 1400 + radius
                                     min_y, max_y = 1400 - radius, 1400 + radius
-                                    
+
                                     valid_edges = [
-                                        eid for eid, edata in all_edge_data.items()
-                                        if min_x <= edata["tx"] <= max_x and min_y <= edata["ty"] <= max_y
+                                        eid
+                                        for eid, edata in all_edge_data.items()
+                                        if min_x <= edata["tx"] <= max_x
+                                        and min_y <= edata["ty"] <= max_y
                                     ]
                                     if not valid_edges:
                                         valid_edges = list(all_edge_data.keys())
-                                        
+
                                     new_target = random.choice(valid_edges)
                                     try:
                                         traci.vehicle.changeTarget(vid, new_target)
-                                    except:
+                                    except:  # noqa: E722
                                         pass
-                                        
+
                         else:
                             # 已经锁定了车位，检查是否被抢占
                             target_spot = stats["target_spot"]
                             target_edge = all_spots[target_spot]["edge"]
                             if current_edge == target_edge:
-                                if all_spots[target_spot]["occupied"] >= all_spots[target_spot]["capacity"]:
+                                if (
+                                    all_spots[target_spot]["occupied"]
+                                    >= all_spots[target_spot]["capacity"]
+                                ):
                                     # 被抢占了，放弃该车位，继续巡航
-                                    traci.vehicle.setParkingAreaStop(vid, target_spot, duration=0)
+                                    traci.vehicle.setParkingAreaStop(
+                                        vid, target_spot, duration=0
+                                    )
                                     stats["target_spot"] = None
                                     if vid == current_protagonist:
-                                        traci.simulation.writeMessage(f"  ❌ {vid} 到达 {target_spot}，但车位已被抢占！继续寻找。")
+                                        traci.simulation.writeMessage(
+                                            f"  ❌ {vid} 到达 {target_spot}，但车位已被抢占！继续寻找。"
+                                        )
 
                 except traci.exceptions.TraCIException:
                     pass
@@ -388,6 +414,21 @@ def run_baseline():
                     (vehicle_id, scenario, search_time_sec, cruising_distance_m, total_fuel_mg, final_spot_id) 
                     VALUES (%s, %s, %s, %s, %s, %s)""",
                     (vid, "Baseline", search_time, cruise_dist, total_fuel, None),
+                )
+        conn.commit()
+
+    print(
+        f"🏁 场景 A 仿真结束。当前时间步: {current_time}。共成功记录 {completed_vehicles} 辆车的数据。"
+    )
+    traci.close()
+    plotter.close()
+    cursor.close()
+    conn.close()
+
+
+if __name__ == "__main__":
+    run_baseline()
+me, cruise_dist, total_fuel, None),
                 )
         conn.commit()
 
