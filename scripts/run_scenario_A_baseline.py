@@ -299,8 +299,8 @@ def run_baseline():
                                     spots = spots_by_edge[edge].copy()
                                     random.shuffle(spots)
                                     for sid in spots:
-                                        # 过滤掉当前道路上已经开过的车位
-                                        if edge == current_edge and all_spots[sid].get("startPos", 0.0) <= current_lanepos:
+                                        # 过滤掉当前道路上已经开过的车位（增加15米的制动距离余量）
+                                        if edge == current_edge and all_spots[sid].get("startPos", 0.0) <= current_lanepos + 15.0:
                                             continue
                                             
                                         if (
@@ -362,9 +362,19 @@ def run_baseline():
                                     >= all_spots[target_spot]["capacity"]
                                 ):
                                     # 被抢占了，放弃该车位，继续巡航
-                                    traci.vehicle.setParkingAreaStop(
-                                        vid, target_spot, duration=0
-                                    )
+                                    if current_lanepos <= all_spots[target_spot].get("startPos", 0.0):
+                                        try:
+                                            traci.vehicle.setParkingAreaStop(
+                                                vid, target_spot, duration=0
+                                            )
+                                        except:
+                                            pass
+                                    else:
+                                        # 如果已经开过了或者到了，说明它可能停下等了或者错过了，强制唤醒继续
+                                        try:
+                                            traci.vehicle.resume(vid)
+                                        except:
+                                            pass
                                     stats["target_spot"] = None
                                     if vid == current_protagonist:
                                         traci.simulation.writeMessage(
