@@ -48,7 +48,8 @@ for edge in root.findall("edge"):
 
         if fx <= min_x + 1 or fx >= max_x - 1 or fy <= min_y + 1 or fy >= max_y - 1:
             entry_edges.append(eid)
-        if min_x + 1 < tx < max_x - 1 and min_y + 1 < ty < max_y - 1:
+        # CBD 区域为 7*7，即 x 和 y 在 [800, 2000] 范围内
+        if 800 - 1 < tx < 2000 + 1 and 800 - 1 < ty < 2000 + 1:
             internal_edges.append(eid)
 
 print(f"🌍 发现外围入口路段 (出生点): {len(entry_edges)} 条")

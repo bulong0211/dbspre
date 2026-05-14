@@ -8,8 +8,8 @@
 
     <gui>
         <gui-settings-file value="gui-settings.xml" />
-        <start value="false" />       <!-- 自动开始仿真 -->
-        <delay value="10" />         <!-- 仿真延迟10ms -->
+        <start value="false" />
+        <delay value="10" />
     </gui>
 
 </configuration>
