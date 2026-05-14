@@ -68,7 +68,11 @@ def run_baseline():
             if edge.attrib["from"] in nodes and edge.attrib["to"] in nodes:
                 fx, fy = nodes[edge.attrib["from"]]
                 tx, ty = nodes[edge.attrib["to"]]
-                all_edge_data[eid] = {"tx": tx, "ty": ty, "fx": fx, "fy": fy}
+                all_edge_data[eid] = {
+                    "tx": tx, "ty": ty, "fx": fx, "fy": fy,
+                    "from_node": edge.attrib["from"],
+                    "to_node": edge.attrib["to"]
+                }
 
     spots_by_edge = {}
     for sid, sdata in all_spots.items():
@@ -290,24 +294,51 @@ def run_baseline():
                         if not stats.get("target_spot"):
                             route = traci.vehicle.getRoute(vid)
                             route_idx = traci.vehicle.getRouteIndex(vid)
-                            upcoming_edges = route[route_idx : route_idx + 2]
+                            upcoming_edges = route[route_idx : route_idx + 3]
+                            
+                            visible_edges = set(upcoming_edges)
+                            
+                            # 获取当前或前方的参考节点，用于模拟在十字路口观察
+                            ref_node = None
+                            if current_edge in all_edge_data:
+                                ref_node = all_edge_data[current_edge]["to_node"]
+                            elif current_edge.startswith(":") and upcoming_edges:
+                                nxt = upcoming_edges[0]
+                                if nxt in all_edge_data:
+                                    ref_node = all_edge_data[nxt]["from_node"]
+                            
+                            if ref_node:
+                                # 寻找与该路口相连的所有道路 (视线覆盖十字路口)
+                                for eid, edata in all_edge_data.items():
+                                    if edata["from_node"] == ref_node or edata["to_node"] == ref_node:
+                                        visible_edges.add(eid)
+                                        
+                            if current_edge in all_edge_data:
+                                # 对向车道
+                                cur_from = all_edge_data[current_edge]["from_node"]
+                                cur_to = all_edge_data[current_edge]["to_node"]
+                                for eid, edata in all_edge_data.items():
+                                    if edata["from_node"] == cur_to and edata["to_node"] == cur_from:
+                                        visible_edges.add(eid)
 
                             found_spot = None
-                            for edge in upcoming_edges:
+                            found_spot_edge = None
+                            # 优先看前方的道路，其次看周围可见的道路
+                            search_order = list(upcoming_edges) + list(visible_edges - set(upcoming_edges))
+                            
+                            for edge in search_order:
                                 if edge in spots_by_edge:
                                     # 打乱顺序，随机观察一个空车位
                                     spots = spots_by_edge[edge].copy()
                                     random.shuffle(spots)
                                     for sid in spots:
-                                        # 计算动态制动距离，基础20米 + 基于速度的额外距离
-                                        braking_dist = 20.0 + (current_speed ** 2) / 6.0
-                                        # 过滤掉当前道路上已经开过的车位，或者距离太近无法安全制动的车位
-                                        if edge == current_edge and all_spots[sid].get("startPos", 0.0) <= current_lanepos + braking_dist:
+                                        # 过滤掉当前道路上已经开过的车位，或者距离太近（固定5米余量）
+                                        if edge == current_edge and all_spots[sid].get("startPos", 0.0) <= current_lanepos + 5.0:
                                             continue
-                                        
-                                        # 如果车辆当前在交叉路口内部 (internal edge starts with ':')
-                                        if current_edge.startswith(":") and edge == upcoming_edges[0]:
-                                            if all_spots[sid].get("startPos", 0.0) <= braking_dist:
+                                            
+                                        # 如果在交叉路口内部
+                                        if current_edge.startswith(":") and upcoming_edges and edge == upcoming_edges[0]:
+                                            if all_spots[sid].get("startPos", 0.0) <= 5.0:
                                                 continue
                                             
                                         if (
@@ -315,6 +346,7 @@ def run_baseline():
                                             < all_spots[sid]["capacity"]
                                         ):
                                             found_spot = sid
+                                            found_spot_edge = edge
                                             break
                                 if found_spot:
                                     break
@@ -322,6 +354,10 @@ def run_baseline():
                             if found_spot:
                                 # 看到空车位，尝试准备停入
                                 try:
+                                    if found_spot_edge not in route[route_idx:]:
+                                        # 如果车位所在的道路不在当前剩余的路线上，重定向到该道路
+                                        traci.vehicle.changeTarget(vid, found_spot_edge)
+                                    
                                     traci.vehicle.setParkingAreaStop(
                                         vid, found_spot, duration=7200
                                     )
