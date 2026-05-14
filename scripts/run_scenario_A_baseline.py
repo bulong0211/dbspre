@@ -44,9 +44,16 @@ def run_baseline():
     # 从数据库查询所有停车场并构建缓存字典
     cursor.execute("SELECT spot_id, edge_id, capacity FROM Parking_Spots")
     all_spots = {
-        row[0]: {"edge": row[1], "capacity": row[2], "occupied": 0}
+        row[0]: {"edge": row[1], "capacity": row[2], "occupied": 0, "startPos": 0.0}
         for row in cursor.fetchall()
     }
+
+    # 读取车位物理位置信息
+    pa_tree = ET.parse(CONFIG_DIR / "parking.add.xml")
+    for pa in pa_tree.getroot().findall("parkingArea"):
+        sid = pa.attrib["id"]
+        if sid in all_spots:
+            all_spots[sid]["startPos"] = float(pa.attrib["startPos"])
 
     # 提前解析路网，用于动态扩张搜索半径和识别CBD
     tree = ET.parse(CONFIG_DIR / "demo.net.xml")
@@ -155,6 +162,7 @@ def run_baseline():
                         tc.VAR_ROAD_ID,
                         tc.VAR_SPEED,
                         tc.VAR_POSITION,
+                        tc.VAR_LANEPOSITION,
                     ],
                 )
 
@@ -218,6 +226,7 @@ def run_baseline():
                 current_edge = data[tc.VAR_ROAD_ID]
                 current_speed = data[tc.VAR_SPEED]
                 current_pos = data[tc.VAR_POSITION]
+                current_lanepos = data.get(tc.VAR_LANEPOSITION, 0.0)
 
                 stats["last_dist"] = current_dist
                 stats["total_fuel"] = stats.get("total_fuel", 0.0) + current_fuel
@@ -290,6 +299,10 @@ def run_baseline():
                                     spots = spots_by_edge[edge].copy()
                                     random.shuffle(spots)
                                     for sid in spots:
+                                        # 过滤掉当前道路上已经开过的车位
+                                        if edge == current_edge and all_spots[sid].get("startPos", 0.0) <= current_lanepos:
+                                            continue
+                                            
                                         if (
                                             all_spots[sid]["occupied"]
                                             < all_spots[sid]["capacity"]
@@ -300,11 +313,14 @@ def run_baseline():
                                     break
 
                             if found_spot:
-                                # 看到空车位，直接准备停入
-                                stats["target_spot"] = found_spot
-                                traci.vehicle.setParkingAreaStop(
-                                    vid, found_spot, duration=7200
-                                )
+                                # 看到空车位，尝试准备停入
+                                try:
+                                    traci.vehicle.setParkingAreaStop(
+                                        vid, found_spot, duration=7200
+                                    )
+                                    stats["target_spot"] = found_spot
+                                except traci.exceptions.TraCIException:
+                                    pass
                             else:
                                 # 未找到空车位，检查是否快到目的地，如果是，则需要继续巡航（扩张搜索半径）
                                 if route_idx >= len(route) - 2:
