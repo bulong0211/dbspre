@@ -1,4 +1,4 @@
-# ITS Smart Parking Allocation & Cruising Reduction
+<h1 align="center">ITS Smart Parking Allocation & Cruising Reduction</h1>
 
 <p align="center">
   <em>An intelligent parking reservation and dynamic pricing simulation system</em>
