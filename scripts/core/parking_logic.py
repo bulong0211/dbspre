@@ -88,13 +88,13 @@ def scan_street(
             spot_pos = all_spots[sid].get("startPos", 0.0)
 
             if base_dist < 0:
-                # 车辆在当前道路上 → 可从前方或后方路口掉头
+                # 车辆在当前道路上 → 前方或后方路口掉头均可
                 dist_front = (fwd_len + base_dist) + spot_pos
                 dist_rear = (-base_dist) + (opp_len - spot_pos)
                 ahead = dist_front if dist_front < dist_rear else dist_rear
             else:
-                # 对向道路近端就在路口，可从路口直接进入
-                ahead = base_dist + (opp_len - spot_pos)
+                # 尚未到达此道路 → 须先穿过正向道路 → 远端掉头 → 进入对向
+                ahead = base_dist + fwd_len + spot_pos
 
             if min_ahead <= ahead <= SIGHT_DISTANCE:
                 candidates.append((sid, opp, ahead))
@@ -120,7 +120,7 @@ def scan_street(
                 if idx + 1 < len(route):
                     nxt = route[idx + 1]
                     _add_with_opp(
-                        nxt, SIGHT_DISTANCE - 20.0, min_ahead=SPOT_STOP_MARGIN
+                        nxt, dist_to_end, min_ahead=SPOT_STOP_MARGIN
                     )
             except traci.exceptions.TraCIException:
                 pass
