@@ -8,6 +8,7 @@ import random
 
 import traci
 import traci.exceptions
+
 from .config import (
     INTERSECTION_LOOKAHEAD,
     PARKING_DURATION,
@@ -86,9 +87,6 @@ def scan_street(
                 continue
             spot_pos = all_spots[sid].get("startPos", 0.0)
 
-            # 对向道路只能从其 from-node（前方路口）合法进入
-            # base_dist<0(在道路上): fwd_len+base_dist = 到前方路口距离
-            # base_dist>=0(未到达):   fwd_len+base_dist = 穿过正向道路总距离
             ahead = fwd_len + base_dist + spot_pos
 
             if min_ahead <= ahead <= SIGHT_DISTANCE:
@@ -113,9 +111,7 @@ def scan_street(
             idx = traci.vehicle.getRouteIndex(vid)
             if idx + 1 < len(route):
                 nxt = route[idx + 1]
-                _add_with_opp(
-                    nxt, dist_to_end, min_ahead=SPOT_STOP_MARGIN
-                )
+                _add_with_opp(nxt, dist_to_end, min_ahead=SPOT_STOP_MARGIN)
         except traci.exceptions.TraCIException:
             pass
 
@@ -166,8 +162,9 @@ def try_park(vid, spot_id, spot_edge, stats, current_edge, all_spots):
     return False
 
 
-def check_pending(vid, stats, current_edge, all_spots, all_edges,
-                  opposite_map=None, outgoing_map=None):
+def check_pending(
+    vid, stats, current_edge, all_spots, all_edges, opposite_map=None, outgoing_map=None
+):
     """到达 pending 边后尝试停入。"""
     pending = stats.get("pending_spot")
     if not pending:
@@ -196,8 +193,9 @@ def check_pending(vid, stats, current_edge, all_spots, all_edges,
         reroute_random(vid, all_edges, opposite_map, outgoing_map)
 
 
-def handle_occupied(vid, stats, current_edge, all_spots, all_edges,
-                    opposite_map=None, outgoing_map=None):
+def handle_occupied(
+    vid, stats, current_edge, all_spots, all_edges, opposite_map=None, outgoing_map=None
+):
     """车位被占或车辆已离开目标道路时放弃。"""
     target = stats.get("target_spot")
     if not target or target not in all_spots:

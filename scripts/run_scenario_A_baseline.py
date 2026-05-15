@@ -118,7 +118,13 @@ def _settle(vid, stats, current_time, current_dist, spot_id, cursor, conn):
     stats["search_time"] = search_time
     stats["total_fuel"] = stats.get("total_fuel", 0.0)
     log_cruise(
-        cursor, vid, SCENARIO_A_NAME, search_time, current_dist, stats["total_fuel"], spot_id
+        cursor,
+        vid,
+        SCENARIO_A_NAME,
+        search_time,
+        current_dist,
+        stats["total_fuel"],
+        spot_id,
     )
     conn.commit()
 
@@ -455,10 +461,7 @@ def run_baseline():
             _settle(vid, stats, current_time, curr_dist, None, cursor, conn)
         conn.commit()
 
-    print(
-        f"🏁 场景 A 结束。t={current_time:.0f}s "
-        f"完成={completed} 丢失={teleported}"
-    )
+    print(f"🏁 场景 A 结束。t={current_time:.0f}s 完成={completed} 丢失={teleported}")
     for obj in (traci, plotter, cursor, conn):
         try:
             obj.close()
