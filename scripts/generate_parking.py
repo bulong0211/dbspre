@@ -53,7 +53,7 @@ sql_lines = [
     "DROP TYPE IF EXISTS spot_category;",
     "CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');",
     "CREATE TABLE Parking_Spots (spot_id VARCHAR(50) PRIMARY KEY, edge_id VARCHAR(50) NOT NULL, spot_type spot_category NOT NULL, capacity INT NOT NULL, occupied INT DEFAULT 0, base_price DECIMAL(5,2) NOT NULL, current_price DECIMAL(5,2) NOT NULL);",
-    "CREATE TABLE Cruising_Logs (log_id SERIAL PRIMARY KEY, vehicle_id VARCHAR(50) NOT NULL, scenario VARCHAR(20) NOT NULL, search_time_sec FLOAT NOT NULL, cruising_distance_m FLOAT NOT NULL, final_spot_id VARCHAR(50) REFERENCES Parking_Spots(spot_id) ON DELETE CASCADE ON UPDATE CASCADE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, total_fuel_mg FLOAT NOT NULL);",
+    "CREATE TABLE Cruising_Logs (log_id SERIAL PRIMARY KEY, vehicle_id VARCHAR(50) NOT NULL, scenario VARCHAR(20) NOT NULL, search_time_sec FLOAT NOT NULL, cruising_distance_m FLOAT NOT NULL, final_spot_id VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, total_fuel_mg FLOAT NOT NULL);",
     "INSERT INTO Parking_Spots (spot_id, edge_id, spot_type, capacity, base_price, current_price) VALUES",
 ]
 

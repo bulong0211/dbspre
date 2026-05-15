@@ -9,7 +9,7 @@
     <gui>
         <gui-settings-file value="gui-settings.xml" />
         <start value="false" />
-        <delay value="10" />
+        <delay value="35" />
     </gui>
 
 </configuration>

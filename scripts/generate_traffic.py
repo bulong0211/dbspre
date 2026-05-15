@@ -48,8 +48,13 @@ for edge in root.findall("edge"):
 
         if fx <= min_x + 1 or fx >= max_x - 1 or fy <= min_y + 1 or fy >= max_y - 1:
             entry_edges.append(eid)
-        # CBD 区域为 7*7，即 x 和 y 在 [800, 2000] 范围内
-        if 800 - 1 < tx < 2000 + 1 and 800 - 1 < ty < 2000 + 1:
+        # CBD 区域为 7*7，即 x 和 y 在 [800, 2000] 范围内, 这里设置为 [1200, 1600] 来确保核心区域的边界
+        if (
+            1200 <= fx <= 1600
+            and 1200 <= fy <= 1600
+            and 1200 <= tx <= 1600
+            and 1200 <= ty <= 1600
+        ):
             internal_edges.append(eid)
 
 print(f"🌍 发现外围入口路段 (出生点): {len(entry_edges)} 条")
@@ -67,12 +72,14 @@ for i in range(VEHICLE_COUNT):
     end_edge = random.choice(internal_edges)
     depart_time = round(random.uniform(0, SIM_DURATION), 1)
 
-    trips_data.append({
-        "id": f"veh_{i}",
-        "depart": depart_time,
-        "from": start_edge,
-        "to": end_edge,
-    })
+    trips_data.append(
+        {
+            "id": f"veh_{i}",
+            "depart": depart_time,
+            "from": start_edge,
+            "to": end_edge,
+        }
+    )
 
 trips_data.sort(key=lambda x: x["depart"])
 
