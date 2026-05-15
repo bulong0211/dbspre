@@ -93,8 +93,8 @@ def scan_street(
                 dist_rear = (-base_dist) + (opp_len - spot_pos)
                 ahead = dist_front if dist_front < dist_rear else dist_rear
             else:
-                # 车辆尚未到达此道路 → 只能从前方进入对向
-                ahead = base_dist + fwd_len + spot_pos
+                # 对向道路近端就在路口，可从路口直接进入
+                ahead = base_dist + (opp_len - spot_pos)
 
             if min_ahead <= ahead <= SIGHT_DISTANCE:
                 candidates.append((sid, opp, ahead))
