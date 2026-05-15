@@ -76,8 +76,28 @@ def scan_street(
     def _add_with_opp(edge_id, base_dist, min_ahead):
         _add_spots(edge_id, base_dist, min_ahead)
         opp = opposite_map.get(edge_id)
-        if opp:
-            _add_spots(opp, base_dist + 15.0, min_ahead)
+        if not opp:
+            return
+
+        fwd_len = edge_lengths.get(edge_id, 100.0)
+        opp_len = edge_lengths.get(opp, fwd_len)
+
+        for sid in spots_by_edge.get(opp, []):
+            if all_spots[sid]["occupied"] >= all_spots[sid]["capacity"]:
+                continue
+            spot_pos = all_spots[sid].get("startPos", 0.0)
+
+            if base_dist < 0:
+                # 车辆在当前道路上 → 可从前方或后方路口掉头
+                dist_front = (fwd_len + base_dist) + spot_pos
+                dist_rear = (-base_dist) + (opp_len - spot_pos)
+                ahead = dist_front if dist_front < dist_rear else dist_rear
+            else:
+                # 车辆尚未到达此道路 → 只能从前方进入对向
+                ahead = base_dist + fwd_len + spot_pos
+
+            if min_ahead <= ahead <= SIGHT_DISTANCE:
+                candidates.append((sid, opp, ahead))
 
     # 每步必扫：当前道路本侧 + 对向
     _add_with_opp(current_edge, -current_lanepos, min_ahead=0)
