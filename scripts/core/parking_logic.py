@@ -113,17 +113,16 @@ def scan_street(
             for out_edge in outgoing_map.get(current_edge, []):
                 _add_with_opp(out_edge, dist_to_end, min_ahead=SPOT_STOP_MARGIN)
 
-        if not candidates:
-            try:
-                route = traci.vehicle.getRoute(vid)
-                idx = traci.vehicle.getRouteIndex(vid)
-                if idx + 1 < len(route):
-                    nxt = route[idx + 1]
-                    _add_with_opp(
-                        nxt, dist_to_end, min_ahead=SPOT_STOP_MARGIN
-                    )
-            except traci.exceptions.TraCIException:
-                pass
+        try:
+            route = traci.vehicle.getRoute(vid)
+            idx = traci.vehicle.getRouteIndex(vid)
+            if idx + 1 < len(route):
+                nxt = route[idx + 1]
+                _add_with_opp(
+                    nxt, dist_to_end, min_ahead=SPOT_STOP_MARGIN
+                )
+        except traci.exceptions.TraCIException:
+            pass
 
     if not candidates:
         return None, None
