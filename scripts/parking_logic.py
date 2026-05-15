@@ -1,31 +1,42 @@
-"""沿街寻位逻辑 —— 模拟真实驾驶员在 CBD 内沿道路找车位的行为。
+"""沿街寻位逻辑 —— 模拟真实驾驶员在路网中沿道路找车位的行为。
 
-真实驾驶行为：
-- 沿当前道路缓行，观察前方路侧是否有空车位
-- 看到空位则尝试停入（有一定概率看漏）
-- 快走到路尽头时随机拐弯/换路继续找
-- 不会站在路口扫视半径 80 米内的所有道路
+核心原则：不自行判定车辆"已驶过"或"距离不够"——
+停入是否可行完全交给 SUMO 的 setParkingAreaStop 决定。
 """
+
 import random
+
 import traci
 import traci.exceptions
-
 from config import (
-    SIGHT_DISTANCE, SPOT_STOP_MARGIN, PARKING_DURATION, INTERSECTION_LOOKAHEAD,
+    INTERSECTION_LOOKAHEAD,
+    PARKING_DURATION,
+    SIGHT_DISTANCE,
+    SPOT_STOP_MARGIN,
 )
 
 
-def reroute_to_cbd(vid, cbd_edges):
-    """分配随机 CBD 边作为新目的地，让车辆沿路网自然巡航。"""
-    if not cbd_edges:
+def reroute_random(vid, all_edges, opposite_map=None, outgoing_map=None):
+    """分配随机边作为新目的地。排除当前边、对向边及直接相邻边，确保路由不短于 2 跳。"""
+    if not all_edges:
         return False
     try:
         current = traci.vehicle.getRoadID(vid)
     except traci.exceptions.TraCIException:
         return False
-    candidates = [e for e in cbd_edges if e != current]
+
+    exclude = {current}
+    if opposite_map:
+        opp = opposite_map.get(current)
+        if opp:
+            exclude.add(opp)
+    if outgoing_map:
+        for e in outgoing_map.get(current, []):
+            exclude.add(e)
+
+    candidates = [e for e in all_edges if e not in exclude]
     if not candidates:
-        candidates = cbd_edges
+        candidates = [e for e in all_edges if e != current]
     try:
         traci.vehicle.changeTarget(vid, random.choice(candidates))
         return True
@@ -33,18 +44,18 @@ def reroute_to_cbd(vid, cbd_edges):
         return False
 
 
-def scan_street(vid, current_edge, current_lanepos, spots_by_edge, all_spots,
-                opposite_map=None, outgoing_map=None, edge_lengths=None):
-    """沿街 + 路口张望空车位（模拟真实驾驶员视野）。
-
-    视野分层：
-    - 直道行驶：当前道路本侧 + 对向车道
-    - 接近路口（距路口 ≤ INTERSECTION_LOOKAHEAD）：额外扫视交叉方向
-      所有可达边及其对向车道（最多 8 条边）
-    - 视角始终在路上：只扫前方及路口方向，不扫背后
-
-    返回: (spot_id, spot_edge) 或 (None, None)
-    """
+def scan_street(
+    vid,
+    current_edge,
+    current_lanepos,
+    spots_by_edge,
+    all_spots,
+    opposite_map=None,
+    outgoing_map=None,
+    edge_lengths=None,
+    full_scan=True,
+):
+    """沿街 + 路口张望空车位。返回 (spot_id, spot_edge) 或 (None, None)。"""
     candidates = []
     if opposite_map is None:
         opposite_map = {}
@@ -53,72 +64,84 @@ def scan_street(vid, current_edge, current_lanepos, spots_by_edge, all_spots,
     if edge_lengths is None:
         edge_lengths = {}
 
-    def _add_edge_spots(edge_id, base_dist):
+    def _add_spots(edge_id, base_dist, min_ahead):
         for sid in spots_by_edge.get(edge_id, []):
             if all_spots[sid]["occupied"] >= all_spots[sid]["capacity"]:
                 continue
             spot_pos = all_spots[sid].get("startPos", 0.0)
             ahead = base_dist + spot_pos
-            if SPOT_STOP_MARGIN <= ahead <= SIGHT_DISTANCE:
+            if min_ahead <= ahead <= SIGHT_DISTANCE:
                 candidates.append((sid, edge_id, ahead))
 
-    def _add_edge_with_opposite(edge_id, base_dist):
-        _add_edge_spots(edge_id, base_dist)
+    def _add_with_opp(edge_id, base_dist, min_ahead):
+        _add_spots(edge_id, base_dist, min_ahead)
         opp = opposite_map.get(edge_id)
         if opp:
-            _add_edge_spots(opp, base_dist + 15.0)
+            _add_spots(opp, base_dist + 15.0, min_ahead)
 
-    # 1. 当前道路：本侧 + 对向
-    _add_edge_with_opposite(current_edge, -current_lanepos)
+    # 每步必扫：当前道路本侧 + 对向
+    _add_with_opp(current_edge, -current_lanepos, min_ahead=0)
 
-    # 2. 计算距路口距离
-    edge_len = edge_lengths.get(current_edge, 100.0)
-    if current_edge.startswith(":"):
-        edge_len = 15.0
-    dist_to_end = edge_len - current_lanepos
+    # full_scan：路口交叉方向 + 下一条路
+    if full_scan:
+        edge_len = edge_lengths.get(current_edge, 100.0)
+        if current_edge.startswith(":"):
+            edge_len = 15.0
+        dist_to_end = edge_len - current_lanepos
 
-    # 3. 如果接近路口 → 扫视交叉方向所有可达边
-    if 0 < dist_to_end <= INTERSECTION_LOOKAHEAD:
-        for out_edge in outgoing_map.get(current_edge, []):
-            # 交叉方向的边从路口起算，spot 越靠近路口越近
-            _add_edge_with_opposite(out_edge, dist_to_end)
+        if 0 < dist_to_end <= INTERSECTION_LOOKAHEAD:
+            for out_edge in outgoing_map.get(current_edge, []):
+                _add_with_opp(out_edge, dist_to_end, min_ahead=SPOT_STOP_MARGIN)
 
-    # 4. 下一条路（路由前方）及其对向
-    if not candidates:
-        try:
-            route = traci.vehicle.getRoute(vid)
-            idx = traci.vehicle.getRouteIndex(vid)
-            if idx + 1 < len(route):
-                nxt = route[idx + 1]
-                _add_edge_with_opposite(nxt, SIGHT_DISTANCE - 20.0)
-        except traci.exceptions.TraCIException:
-            pass
+        if not candidates:
+            try:
+                route = traci.vehicle.getRoute(vid)
+                idx = traci.vehicle.getRouteIndex(vid)
+                if idx + 1 < len(route):
+                    nxt = route[idx + 1]
+                    _add_with_opp(
+                        nxt, SIGHT_DISTANCE - 20.0, min_ahead=SPOT_STOP_MARGIN
+                    )
+            except traci.exceptions.TraCIException:
+                pass
 
     if not candidates:
         return None, None
 
     candidates.sort(key=lambda x: x[2])
     for sid, edge, dist in candidates:
-        prob = 0.90 if dist < 40 else 0.60
+        if edge == current_edge:
+            prob = 1.0 if dist < 40 else 0.95
+        else:
+            prob = 0.85 if dist < 40 else 0.65
         if random.random() < prob:
             return sid, edge
     return None, None
 
 
-def try_park(vid, spot_id, spot_edge, stats, current_edge, current_lanepos, all_spots):
-    """尝试停入指定车位。车位在下一道路时先 changeTarget 延后处理。"""
+def try_park(vid, spot_id, spot_edge, stats, current_edge, all_spots):
+    """
+    尝试停入车位。
+    当前道路 → setParkingAreaStop。
+    其他道路 → changeTarget + pending，已有承诺时拒绝新车位。
+    """
+    if spot_id not in all_spots:
+        return False
     if spot_edge == current_edge:
-        spot_pos = all_spots[spot_id].get("startPos", 0.0)
-        if spot_pos < current_lanepos + SPOT_STOP_MARGIN:
-            return False
         if all_spots[spot_id]["occupied"] < all_spots[spot_id]["capacity"]:
             try:
-                traci.vehicle.setParkingAreaStop(vid, spot_id, duration=PARKING_DURATION)
+                traci.vehicle.setParkingAreaStop(
+                    vid, spot_id, duration=PARKING_DURATION
+                )
                 stats["target_spot"] = spot_id
+                stats.pop("pending_spot", None)
+                stats.pop("pending_spot_edge", None)
                 return True
             except traci.exceptions.TraCIException:
                 return False
     else:
+        if stats.get("pending_spot"):
+            return False
         try:
             traci.vehicle.changeTarget(vid, spot_edge)
             stats["pending_spot"] = spot_id
@@ -129,17 +152,18 @@ def try_park(vid, spot_id, spot_edge, stats, current_edge, current_lanepos, all_
     return False
 
 
-def check_pending(vid, stats, current_edge, current_lanepos, all_spots):
-    """车辆已到达 pending 车位所在道路，尝试停入。"""
+def check_pending(vid, stats, current_edge, all_spots, all_edges,
+                  opposite_map=None, outgoing_map=None):
+    """到达 pending 边后尝试停入。"""
     pending = stats.get("pending_spot")
     if not pending:
         return
     if stats.get("pending_spot_edge") != current_edge:
         return
-    spot_pos = all_spots[pending].get("startPos", 0.0)
-    if spot_pos < current_lanepos + SPOT_STOP_MARGIN:
+    if pending not in all_spots:
         stats.pop("pending_spot", None)
         stats.pop("pending_spot_edge", None)
+        reroute_random(vid, all_edges, opposite_map, outgoing_map)
         return
     if all_spots[pending]["occupied"] < all_spots[pending]["capacity"]:
         try:
@@ -151,26 +175,36 @@ def check_pending(vid, stats, current_edge, current_lanepos, all_spots):
             stats.pop("target_spot", None)
             stats.pop("pending_spot", None)
             stats.pop("pending_spot_edge", None)
+            reroute_random(vid, all_edges, opposite_map, outgoing_map)
     else:
         stats.pop("pending_spot", None)
         stats.pop("pending_spot_edge", None)
+        reroute_random(vid, all_edges, opposite_map, outgoing_map)
 
 
-def handle_occupied(vid, stats, current_edge, current_lanepos, all_spots, target_edges):
-    """已锁定车位被抢占时放弃并重新巡航。"""
-    target = stats["target_spot"]
-    if all_spots[target]["edge"] != current_edge:
+def handle_occupied(vid, stats, current_edge, all_spots, all_edges,
+                    opposite_map=None, outgoing_map=None):
+    """车位被占或车辆已离开目标道路时放弃。"""
+    target = stats.get("target_spot")
+    if not target or target not in all_spots:
+        stats["target_spot"] = None
+        reroute_random(vid, all_edges, opposite_map, outgoing_map)
         return
-    if all_spots[target]["occupied"] >= all_spots[target]["capacity"]:
-        if current_lanepos <= all_spots[target].get("startPos", 0.0):
+    target_edge = all_spots[target]["edge"]
+    if target_edge != current_edge:
+        # 不在目标边：若不是途经路口，说明已离开该道路
+        if not current_edge.startswith(":"):
             try:
                 traci.vehicle.setParkingAreaStop(vid, target, duration=0)
             except traci.exceptions.TraCIException:
                 pass
-        else:
-            try:
-                traci.vehicle.resume(vid)
-            except traci.exceptions.TraCIException:
-                pass
+            stats["target_spot"] = None
+            reroute_random(vid, all_edges, opposite_map, outgoing_map)
+        return
+    if all_spots[target]["occupied"] >= all_spots[target]["capacity"]:
+        try:
+            traci.vehicle.setParkingAreaStop(vid, target, duration=0)
+        except traci.exceptions.TraCIException:
+            pass
         stats["target_spot"] = None
-        reroute_to_cbd(vid, target_edges)
+        reroute_random(vid, all_edges, opposite_map, outgoing_map)

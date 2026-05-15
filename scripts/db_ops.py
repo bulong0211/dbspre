@@ -16,3 +16,12 @@ def sync_spots(cursor, conn, spots_data):
         "UPDATE Parking_Spots SET occupied = %s WHERE spot_id = %s", sync
     )
     conn.commit()
+
+
+def sync_spots_priced(cursor, conn, spots_data):
+    sync = [(d["booked"], d["current_price"], sid) for sid, d in spots_data.items()]
+    cursor.executemany(
+        "UPDATE Parking_Spots SET occupied = %s, current_price = %s WHERE spot_id = %s",
+        sync,
+    )
+    conn.commit()

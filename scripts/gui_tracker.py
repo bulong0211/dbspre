@@ -58,6 +58,10 @@ class GUITracker:
             except traci.exceptions.TraCIException:
                 pass
 
+    @property
+    def current_protagonist(self):
+        return self.protagonist
+
     def on_vehicle_parked(self, vid):
         if vid == self.protagonist:
             self.protagonist = None

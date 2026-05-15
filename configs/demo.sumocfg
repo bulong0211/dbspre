@@ -3,7 +3,7 @@
     <input>
         <net-file value="demo.net.xml" />
         <route-files value="demo.rou.xml" />
-        <additional-files value="parking.add.xml,cbd.poly.xml" />
+        <additional-files value="parking.add.xml" />
     </input>
 
     <gui>

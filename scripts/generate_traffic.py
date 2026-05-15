@@ -66,10 +66,12 @@ print(f"🏢 发现内部核心区域 (目的地): {len(internal_edges)} 条")
 VEHICLE_COUNT = 2500
 SIM_DURATION = 3600
 
+all_edges = list(edge_data.keys())
+
 trips_data = []
 for i in range(VEHICLE_COUNT):
     start_edge = random.choice(entry_edges)
-    end_edge = random.choice(internal_edges)
+    end_edge = random.choice(all_edges)
     depart_time = round(random.uniform(0, SIM_DURATION), 1)
 
     trips_data.append(

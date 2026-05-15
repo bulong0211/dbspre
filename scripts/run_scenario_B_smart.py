@@ -1,52 +1,38 @@
+"""场景 B —— 智能预订 + 动态定价模式。"""
+
 import math
-import os
-import random
-import sys
-import time
-from pathlib import Path
 
 import traci
 import traci.constants as tc
 import traci.exceptions
+from config import (
+    DB_SYNC_INTERVAL,
+    PLOTTER_UPDATE_INTERVAL,
+    SCENARIO_B_NAME,
+    SIMULATION_DURATION_LIMIT,
+    STREET_SPOT_THRESHOLD,
+    TOTAL_VEHICLES_TARGET,
+    WEIGHT_DISTANCE,
+    WEIGHT_PRICE,
+    sumoCmd,
+)
 from connection import get_db_connection
+from db_ops import log_cruise, sync_spots_priced
+from gui_tracker import GUITracker
 from monitor import MultiprocessingPlotter
 from reset_db import reset_database
 
-# -----------------------------------------------------------------------------
-# 环境配置与依赖设置
-# -----------------------------------------------------------------------------
-if "SUMO_HOME" in os.environ:
-    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
-else:
-    sys.exit("❌ 请声明环境变量 'SUMO_HOME'")
 
-from sumolib import checkBinary
-
-# 配置文件路径和 SUMO 启动参数
-CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
-HAS_GUI = True
-sumoBinary = checkBinary("sumo-gui") if HAS_GUI else checkBinary("sumo")
-sumoCmd = [sumoBinary, "-c", str(CONFIG_DIR / "demo.sumocfg")]
-
-
-def run_smart_booking_with_pricing():
-    """
-    运行智能预订与动态定价场景的仿真。
-    管理与数据库的交互、车位定价计算和基于成本优化的车辆泊位分配。
-    """
-    print("🔄 准备仿真环境...")
-    reset_database(clear_logs=False, scenario_to_clear="Smart_Booking_Priced")
-
-    print("🔌 正在连接数据库...")
-    conn = get_db_connection()  # type: ignore
-    cursor = conn.cursor()
-
-    # 从数据库查询所有停车场并构建缓存字典
+# ---------------------------------------------------------------------------
+# 静态数据加载
+# ---------------------------------------------------------------------------
+def _load_spots(cursor):
     cursor.execute(
         "SELECT spot_id, edge_id, capacity, base_price, current_price FROM Parking_Spots"
     )
-    all_spots = {
-        row[0]: {
+    spots = {}
+    for row in cursor.fetchall():
+        spots[row[0]] = {
             "edge": row[1],
             "capacity": row[2],
             "booked": 0,
@@ -54,316 +40,251 @@ def run_smart_booking_with_pricing():
             "current_price": float(row[4]),
             "pos": None,
         }
-        for row in cursor.fetchall()
-    }
+    return spots
 
-    print("🚀 启动场景 B (动态定价 + 智能预订模式) - 最大限时 2 小时...")
-    traci.start(sumoCmd)
 
-    # 获取所有停车位所在的物理坐标，用于后续距离计算
-    for sid, data in all_spots.items():
+def _compute_positions(all_spots):
+    """获取所有停车位的物理坐标（需在 traci.start 之后调用）。"""
+    for data in all_spots.values():
         try:
             data["pos"] = traci.lane.getShape(f"{data['edge']}_0")[0]
         except traci.exceptions.TraCIException:
             data["pos"] = (0, 0)
 
-    # 全局跟踪及统计变量
-    current_protagonist = None
-    total_tracked = 0
 
-    veh_stats = {}
+# ---------------------------------------------------------------------------
+# 浪涌定价
+# ---------------------------------------------------------------------------
+def _compute_pricing(all_spots):
+    """按街道维度聚合小容量路边车位，依据占用率阶梯式涨价。"""
+    street_stats = {}
+    for data in all_spots.values():
+        if data["capacity"] <= STREET_SPOT_THRESHOLD:
+            eid = data["edge"]
+            if eid not in street_stats:
+                street_stats[eid] = {"total_capacity": 0, "total_booked": 0}
+            street_stats[eid]["total_capacity"] += data["capacity"]
+            street_stats[eid]["total_booked"] += data["booked"]
 
-    completed_vehicles = 0
-    teleported_vehicles = 0
-    TOTAL_VEHICLES = 2500
-
-    current_time = 0
-    last_track_time = 0.0
-
-    plotter = MultiprocessingPlotter("场景 B - 智能预订监控面板")
-
-    # 距离和价格的权重系数
-    WEIGHT_DISTANCE = 1.0
-    WEIGHT_PRICE = 100.0
-
-    # -------------------------------------------------------------------------
-    # 主仿真循环，时限设定为 7200 秒
-    # -------------------------------------------------------------------------
-    while traci.simulation.getMinExpectedNumber() > 0 and current_time <= 7200:  # type: ignore
-        traci.simulationStep()
-        current_time = traci.simulation.getTime()
-        active_vehicles = traci.vehicle.getIDList()
-
-        # GUI 环境下聚焦追踪车辆
-        if HAS_GUI:
-            if (
-                current_protagonist is None
-                or current_protagonist not in active_vehicles
-            ):
-                if len(active_vehicles) > 50:
-                    struggling_candidates = [
-                        v
-                        for v in active_vehicles
-                        if v in veh_stats and veh_stats[v].get("status") in ["driving"]
-                    ]
-
-                    if struggling_candidates:
-                        current_protagonist = random.choice(struggling_candidates)
-                        total_tracked += 1
-
-                        msg = "\n" + "=" * 60
-                        msg += f"🎬 [镜头切角] 锁定第 {total_tracked} 位司机: {current_protagonist} 的寻车之旅"
-                        msg += "=" * 60
-                        traci.simulation.writeMessage(msg)
-
-                        try:
-                            traci.gui.trackVehicle("View #0", current_protagonist)
-                            traci.gui.setZoom("View #0", 2000)
-                            last_track_time = time.time()
-                        except Exception:
-                            pass
-                    else:
-                        try:
-                            traci.gui.trackVehicle("View #0", "")
-                            traci.gui.setZoom("View #0", 250)
-                        except Exception:
-                            pass
-            else:
-                try:
-                    tracked = traci.gui.getTrackedVehicle("View #0")
-                    if tracked == "":
-                        if time.time() - last_track_time > 8.0:
-                            traci.gui.trackVehicle("View #0", current_protagonist)
-                            traci.gui.setZoom("View #0", 2000)
-                            last_track_time = time.time()
-                    else:
-                        last_track_time = time.time()
-                except Exception:
-                    pass
-
-        departed = traci.simulation.getDepartedIDList()
-        if departed:
-            # -----------------------------------------------------------------
-            # 浪涌定价机制计算
-            # -----------------------------------------------------------------
-            STREET_SPOT_THRESHOLD = 3
-            street_stats = {}
-
-            # 按街道维度聚合小容量路边停车位的使用情况
-            for sid, data in all_spots.items():
-                if data["capacity"] <= STREET_SPOT_THRESHOLD:
-                    eid = data["edge"]
-                    if eid not in street_stats:
-                        street_stats[eid] = {"total_capacity": 0, "total_booked": 0}
-                    street_stats[eid]["total_capacity"] += data["capacity"]
-                    street_stats[eid]["total_booked"] += data["booked"]
-
-            # 依据不同的车位类型计算占用率并实施阶梯式涨价
-            for sid, data in all_spots.items():
-                if data["capacity"] > STREET_SPOT_THRESHOLD:
-                    occupancy_rate = data["booked"] / data["capacity"]
-                else:
-                    eid = data["edge"]
-                    occupancy_rate = (
-                        street_stats[eid]["total_booked"]
-                        / street_stats[eid]["total_capacity"]
-                    )
-
-                if occupancy_rate > 0.90:
-                    data["current_price"] = data["base_price"] * 2.0
-                elif occupancy_rate > 0.70:
-                    data["current_price"] = data["base_price"] * 1.5
-                else:
-                    data["current_price"] = data["base_price"]
-
-            # -----------------------------------------------------------------
-            # 车辆目标分配模块
-            # -----------------------------------------------------------------
-            for vid in departed:
-                try:
-                    traci.vehicle.setShapeClass(vid, "passenger")
-                    spawn_pos = traci.vehicle.getPosition(vid)
-
-                    available_spots = [
-                        sid
-                        for sid, data in all_spots.items()
-                        if data["booked"] < data["capacity"]
-                    ]
-
-                    if not available_spots:
-                        msg = f"⚠️ [系统爆满] 车辆 {vid} 无法分配到车位！"
-                        traci.simulation.writeMessage(msg)
-                        continue
-
-                    best_spot = None
-                    min_cost = float("inf")
-
-                    # 基于距离惩罚和价格惩罚进行最优解筛选
-                    for sid in available_spots:
-                        spot_data = all_spots[sid]
-                        dist = math.hypot(
-                            spawn_pos[0] - spot_data["pos"][0],
-                            spawn_pos[1] - spot_data["pos"][1],
-                        )
-                        cost = (dist * WEIGHT_DISTANCE) + (
-                            spot_data["current_price"] * WEIGHT_PRICE
-                        )
-
-                        if cost < min_cost:
-                            min_cost = cost
-                            best_spot = sid
-
-                    # 选定车位并更新占用和路由规划
-                    all_spots[best_spot]["booked"] += 1
-                    edge_id = all_spots[best_spot]["edge"]
-
-                    traci.vehicle.changeTarget(vid, edge_id)
-                    traci.vehicle.setParkingAreaStop(vid, best_spot, duration=360000.0)
-                    traci.vehicle.subscribe(
-                        vid, [tc.VAR_FUELCONSUMPTION, tc.VAR_DISTANCE, tc.VAR_SPEED]
-                    )
-
-                    veh_stats[vid] = {
-                        "status": "driving",
-                        "target_spot": best_spot,
-                        "spawn_time": current_time,
-                        "search_time": 0.0,
-                        "total_fuel": 0.0,
-                        "last_dist": 0.0,
-                        "speed": 0.0,
-                    }
-                except traci.exceptions.TraCIException:
-                    pass
-
-        sub_results = traci.vehicle.getAllSubscriptionResults()
-
-        # ---------------------------------------------------------------------
-        # 车辆行驶状态检测及数据持久化
-        # ---------------------------------------------------------------------
-        for vid, stats in list(veh_stats.items()):
-            if stats["status"] == "driving":
-                # 识别因未完成目标而从网络中消失的车辆
-                if vid not in sub_results:
-                    stats["status"] = "teleported"
-                    teleported_vehicles += 1
-
-                    search_time = current_time - stats["spawn_time"]
-                    stats["search_time"] = search_time
-                    last_dist = stats.get("last_dist", 0.0)
-                    total_fuel = stats.get("total_fuel", 0.0)
-
-                    cruise_dist = (
-                        last_dist - stats["cruise_start_dist"]
-                        if stats.get("cruise_start_dist")
-                        else 0
-                    )
-
-                    cursor.execute(
-                        """INSERT INTO Cruising_Logs 
-                           (vehicle_id, scenario, search_time_sec, cruising_distance_m, total_fuel_mg, final_spot_id) 
-                           VALUES (%s, %s, %s, %s, %s, %s)""",
-                        (
-                            vid,
-                            "Smart_Booking_Priced",
-                            search_time,
-                            cruise_dist,
-                            total_fuel,
-                            None,
-                        ),
-                    )
-                    conn.commit()
-
-                    continue
-
-                # 读取并累计车辆在当前时间步的指标数据
-                data = sub_results[vid]
-                current_fuel = data[tc.VAR_FUELCONSUMPTION]
-                current_dist = data[tc.VAR_DISTANCE]
-                current_speed = data[tc.VAR_SPEED]
-
-                stats["last_dist"] = current_dist
-                stats["total_fuel"] = stats.get("total_fuel", 0.0) + current_fuel
-                stats["speed"] = current_speed
-
-                try:
-                    # 判断车辆是否已在目标车位停止并进行结算
-                    if traci.vehicle.isStoppedParking(vid):
-                        target_spot = stats["target_spot"]
-                        stats["status"] = "parked"
-
-                        search_time = current_time - stats["spawn_time"]
-                        stats["search_time"] = search_time
-                        total_fuel = stats.get("total_fuel", 0.0)
-
-                        # 如果当前车辆是被重点追踪的主角，则打印最终历程报告
-                        if vid == current_protagonist:
-                            msg = f"🎉 [停车报告出炉] 司机 {current_protagonist} 停好了！\n"
-                            msg += f"   ✅ 最终落脚点: {target_spot}"
-                            traci.simulation.writeMessage(msg)
-                            current_protagonist = None
-
-                        cursor.execute(
-                            """INSERT INTO Cruising_Logs 
-                               (vehicle_id, scenario, search_time_sec, cruising_distance_m, total_fuel_mg, final_spot_id) 
-                               VALUES (%s, %s, %s, %s, %s, %s)""",
-                            (
-                                vid,
-                                "Smart_Booking_Priced",
-                                search_time,
-                                0,
-                                total_fuel,
-                                target_spot,
-                            ),
-                        )
-                        conn.commit()
-                        completed_vehicles += 1
-                except traci.exceptions.TraCIException:
-                    pass
-
-        plotter.send_data(int(current_time), veh_stats)
-
-        # 验证结束条件：全量车辆处理完毕
-        if (completed_vehicles + teleported_vehicles) == TOTAL_VEHICLES:
-            h = int(current_time // 3600)  # type: ignore
-            m = int((current_time % 3600) // 60)  # type: ignore
-            s = int(current_time % 60)  # type: ignore
-
-            print("\n" + "✨" * 30)
-            print("🎉 提前完赛！系统已达到 100% 处理率。")
-            print(
-                f"⏱️ 最后一辆车完成状态变更的全局时间为：{h} 小时 {m} 分 {s} 秒 ({current_time} 秒)"
+    for data in all_spots.values():
+        if data["capacity"] > STREET_SPOT_THRESHOLD:
+            rate = data["booked"] / data["capacity"]
+        else:
+            eid = data["edge"]
+            rate = (
+                street_stats[eid]["total_booked"] / street_stats[eid]["total_capacity"]
             )
-            print("✨" * 30 + "\n")
-            break
 
-        # 每隔 60 秒刷新数据库状态同步信息
-        if current_time % 60 == 0:  # type: ignore
-            sync_data = [
-                (d["booked"], d["current_price"], sid) for sid, d in all_spots.items()
-            ]
-            cursor.executemany(
-                "UPDATE Parking_Spots SET occupied = %s, current_price = %s WHERE spot_id = %s",
-                sync_data,
-            )
-            conn.commit()
+        if rate > 0.90:
+            data["current_price"] = data["base_price"] * 2.0
+        elif rate > 0.70:
+            data["current_price"] = data["base_price"] * 1.5
+        else:
+            data["current_price"] = data["base_price"]
 
-    # -------------------------------------------------------------------------
-    # 仿真收尾与资源释放
-    # -------------------------------------------------------------------------
-    print("💾 正在将最终的车位预订状态与浪涌价格同步至数据库...")
-    sync_data = [(d["booked"], d["current_price"], sid) for sid, d in all_spots.items()]
-    cursor.executemany(
-        "UPDATE Parking_Spots SET occupied = %s, current_price = %s WHERE spot_id = %s",
-        sync_data,
+
+# ---------------------------------------------------------------------------
+# 车辆分配
+# ---------------------------------------------------------------------------
+def _find_best_spot(vehicle_pos, all_spots):
+    """基于距离+价格综合成本选择最优车位。"""
+    available = [sid for sid, d in all_spots.items() if d["booked"] < d["capacity"]]
+    if not available:
+        return None
+
+    best = None
+    min_cost = float("inf")
+    for sid in available:
+        sp = all_spots[sid]
+        dist = math.hypot(vehicle_pos[0] - sp["pos"][0], vehicle_pos[1] - sp["pos"][1])
+        cost = (dist * WEIGHT_DISTANCE) + (sp["current_price"] * WEIGHT_PRICE)
+        if cost < min_cost:
+            min_cost = cost
+            best = sid
+    return best
+
+
+def _assign_vehicle(vid, spot_id, all_spots, veh_stats, current_time):
+    """将车辆分配至指定车位并初始化追踪状态。"""
+    all_spots[spot_id]["booked"] += 1
+    edge_id = all_spots[spot_id]["edge"]
+
+    traci.vehicle.changeTarget(vid, edge_id)
+    traci.vehicle.setParkingAreaStop(vid, spot_id, duration=360000.0)
+    traci.vehicle.subscribe(
+        vid, [tc.VAR_FUELCONSUMPTION, tc.VAR_DISTANCE, tc.VAR_SPEED]
+    )
+
+    veh_stats[vid] = {
+        "status": "driving",
+        "target_spot": spot_id,
+        "spawn_time": current_time,
+        "search_time": 0.0,
+        "total_fuel": 0.0,
+        "last_dist": 0.0,
+        "speed": 0.0,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 车辆处理
+# ---------------------------------------------------------------------------
+def _settle(vid, stats, current_time, spot_id, cursor, conn):
+    """结算车辆巡航日志。"""
+    stats["search_time"] = current_time - stats["spawn_time"]
+    log_cruise(
+        cursor,
+        vid,
+        SCENARIO_B_NAME,
+        stats["search_time"],
+        stats.get("last_dist", 0.0),
+        stats.get("total_fuel", 0.0),
+        spot_id,
     )
     conn.commit()
+
+
+def _handle_departed(departed, all_spots, veh_stats, current_time):
+    """新生成车辆：定价 → 分配车位 → 初始化状态。"""
+    _compute_pricing(all_spots)
+
+    for vid in departed:
+        try:
+            traci.vehicle.setShapeClass(vid, "passenger")
+            spawn_pos = traci.vehicle.getPosition(vid)
+        except traci.exceptions.TraCIException:
+            continue
+
+        spot_id = _find_best_spot(spawn_pos, all_spots)
+        if spot_id is None:
+            traci.simulation.writeMessage(f"⚠️ [系统爆满] 车辆 {vid} 无法分配到车位！")
+            continue
+
+        try:
+            _assign_vehicle(vid, spot_id, all_spots, veh_stats, current_time)
+        except traci.exceptions.TraCIException:
+            pass
+
+
+def _process_driving(veh_stats, sub_results, current_time, cursor, conn, gui):
+    """行驶中车辆：指标更新、消失检测、泊车结算。"""
+    completed = 0
+    teleported = 0
+
+    for vid, stats in list(veh_stats.items()):
+        if stats["status"] != "driving":
+            continue
+
+        # 车辆从路网中消失
+        if vid not in sub_results:
+            stats["status"] = "teleported"
+            teleported += 1
+            _settle(vid, stats, current_time, None, cursor, conn)
+            continue
+
+        # 累计指标
+        data = sub_results[vid]
+        stats["last_dist"] = data[tc.VAR_DISTANCE]
+        stats["total_fuel"] += data[tc.VAR_FUELCONSUMPTION]
+        stats["speed"] = data[tc.VAR_SPEED]
+
+        # 检测是否已停好
+        try:
+            if traci.vehicle.isStoppedParking(vid):
+                target = stats["target_spot"]
+                stats["status"] = "parked"
+                _settle(vid, stats, current_time, target, cursor, conn)
+
+                if gui and vid == gui.current_protagonist:
+                    traci.simulation.writeMessage(
+                        f"🎉 [停车报告出炉] 司机 {vid} 停好了！\n"
+                        f"   ✅ 最终落脚点: {target}"
+                    )
+                    gui.on_vehicle_parked(vid)
+                completed += 1
+        except traci.exceptions.TraCIException:
+            pass
+
+    return completed, teleported
+
+
+# ---------------------------------------------------------------------------
+# 主仿真循环
+# ---------------------------------------------------------------------------
+def run_smart_booking_with_pricing():
+    print("🔄 准备仿真环境...")
+    reset_database(clear_logs=False, scenario_to_clear=SCENARIO_B_NAME)
+
+    print("🔌 正在连接数据库...")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    all_spots = _load_spots(cursor)
+
+    print("🚀 启动场景 B (动态定价 + 智能预订模式) - 最大限时 2 小时...")
+    traci.start(sumoCmd)
+    _compute_positions(all_spots)
+
+    gui = GUITracker()
+    plotter = MultiprocessingPlotter("场景 B - 智能预订监控面板", layout="B")
+
+    veh_stats = {}
+    completed = 0
+    teleported = 0
+    current_time = 0
+
+    while (
+        traci.simulation.getMinExpectedNumber() > 0
+        and current_time <= SIMULATION_DURATION_LIMIT
+    ):
+        traci.simulationStep()
+        current_time = traci.simulation.getTime()
+        active = traci.vehicle.getIDList()
+
+        gui.update(active, veh_stats, current_time)
+
+        # 新车初始化
+        departed = traci.simulation.getDepartedIDList()
+        if departed:
+            _handle_departed(departed, all_spots, veh_stats, current_time)
+
+        # 行驶中车辆处理
+        sub_results = traci.vehicle.getAllSubscriptionResults()
+        c, t = _process_driving(veh_stats, sub_results, current_time, cursor, conn, gui)
+        completed += c
+        teleported += t
+
+        # 监控面板刷新
+        if int(current_time) % PLOTTER_UPDATE_INTERVAL == 0:
+            plotter.send_data(int(current_time), veh_stats)
+
+        # 提前完赛检测
+        if (completed + teleported) == TOTAL_VEHICLES_TARGET:
+            h, m = int(current_time // 3600), int((current_time % 3600) // 60)
+            s = int(current_time % 60)
+            print(f"\n{'✨' * 30}")
+            print("🎉 提前完赛！系统已达到 100% 处理率。")
+            print(f"⏱️ 全局时间：{h}h{m}m{s}s ({current_time:.0f}s)")
+            print(f"{'✨' * 30}\n")
+            break
+
+        # 定期同步数据库
+        if int(current_time) % DB_SYNC_INTERVAL == 0 and current_time > 0:
+            sync_spots_priced(cursor, conn, all_spots)
+
+    # 收尾
+    print("💾 同步最终车位预订与价格状态...")
+    sync_spots_priced(cursor, conn, all_spots)
     print(
-        f"🏁 场景 B (定价版) 仿真结束。当前时间步: {current_time}。共记录 {completed_vehicles} 辆车。"
+        f"🏁 场景 B 结束。t={current_time:.0f}s "
+        f"完成={completed} 丢失={teleported}"
     )
-    traci.close()
-    plotter.close()
-    cursor.close()
-    conn.close()
+
+    for obj in (traci, plotter, cursor, conn):
+        try:
+            obj.close()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
