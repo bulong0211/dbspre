@@ -8,7 +8,7 @@ import random
 
 import traci
 import traci.exceptions
-from config import (
+from .config import (
     INTERSECTION_LOOKAHEAD,
     PARKING_DURATION,
     SIGHT_DISTANCE,

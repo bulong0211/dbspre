@@ -3,7 +3,7 @@ import warnings
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from connection import get_db_connection
+from core.connection import get_db_connection
 
 # -----------------------------------------------------------------------------
 # Streamlit 页面基础配置

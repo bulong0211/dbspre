@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 import traci
 import traci.constants as tc
 import traci.exceptions
-from config import (
+from core.config import (
     CONFIG_DIR,
     DB_SYNC_INTERVAL,
     PARKING_SCAN_INTERVAL,
@@ -18,18 +18,18 @@ from config import (
     TOTAL_VEHICLES_TARGET,
     sumoCmd,
 )
-from connection import get_db_connection
-from db_ops import log_cruise, sync_spots
-from gui_tracker import GUITracker
-from monitor import MultiprocessingPlotter
-from parking_logic import (
+from core.connection import get_db_connection
+from core.db_ops import log_cruise, sync_spots
+from core.gui_tracker import GUITracker
+from core.monitor import MultiprocessingPlotter
+from core.parking_logic import (
     check_pending,
     handle_occupied,
     reroute_random,
     scan_street,
     try_park,
 )
-from reset_db import reset_database
+from core.reset_db import reset_database
 
 
 # ---------------------------------------------------------------------------

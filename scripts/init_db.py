@@ -1,7 +1,7 @@
 import psycopg2
 from pathlib import Path
 
-from connection import get_db_connection
+from core.connection import get_db_connection
 
 SQL_FILE = Path(__file__).resolve().parent.parent / "configs" / "schema.sql"
 

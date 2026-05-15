@@ -5,22 +5,23 @@ import math
 import traci
 import traci.constants as tc
 import traci.exceptions
-from config import (
+from core.config import (
     DB_SYNC_INTERVAL,
     PLOTTER_UPDATE_INTERVAL,
     SCENARIO_B_NAME,
     SIMULATION_DURATION_LIMIT,
     STREET_SPOT_THRESHOLD,
+    TARGET_TIMEOUT,
     TOTAL_VEHICLES_TARGET,
     WEIGHT_DISTANCE,
     WEIGHT_PRICE,
     sumoCmd,
 )
-from connection import get_db_connection
-from db_ops import log_cruise, sync_spots_priced
-from gui_tracker import GUITracker
-from monitor import MultiprocessingPlotter
-from reset_db import reset_database
+from core.connection import get_db_connection
+from core.db_ops import log_cruise, sync_spots_priced
+from core.gui_tracker import GUITracker
+from core.monitor import MultiprocessingPlotter
+from core.reset_db import reset_database
 
 
 # ---------------------------------------------------------------------------
@@ -106,7 +107,6 @@ def _find_best_spot(vehicle_pos, all_spots):
 
 def _assign_vehicle(vid, spot_id, all_spots, veh_stats, current_time):
     """将车辆分配至指定车位并初始化追踪状态。"""
-    all_spots[spot_id]["booked"] += 1
     edge_id = all_spots[spot_id]["edge"]
 
     traci.vehicle.changeTarget(vid, edge_id)
@@ -115,9 +115,13 @@ def _assign_vehicle(vid, spot_id, all_spots, veh_stats, current_time):
         vid, [tc.VAR_FUELCONSUMPTION, tc.VAR_DISTANCE, tc.VAR_SPEED]
     )
 
+    # 所有 TraCI 调用成功后才更新预订计数
+    all_spots[spot_id]["booked"] += 1
+
     veh_stats[vid] = {
         "status": "driving",
         "target_spot": spot_id,
+        "target_at": current_time,
         "spawn_time": current_time,
         "search_time": 0.0,
         "total_fuel": 0.0,
@@ -145,12 +149,12 @@ def _settle(vid, stats, current_time, spot_id, cursor, conn):
 
 
 def _handle_departed(departed, all_spots, veh_stats, current_time):
-    """新生成车辆：定价 → 分配车位 → 初始化状态。"""
-    _compute_pricing(all_spots)
-
+    """新生成车辆：分配车位 → 初始化状态。"""
     for vid in departed:
         try:
             traci.vehicle.setShapeClass(vid, "passenger")
+            traci.vehicle.setSpeedFactor(vid, 0.4)
+            traci.vehicle.setImperfection(vid, 0.9)
             spawn_pos = traci.vehicle.getPosition(vid)
         except traci.exceptions.TraCIException:
             continue
@@ -163,11 +167,13 @@ def _handle_departed(departed, all_spots, veh_stats, current_time):
         try:
             _assign_vehicle(vid, spot_id, all_spots, veh_stats, current_time)
         except traci.exceptions.TraCIException:
-            pass
+            traci.simulation.writeMessage(
+                f"⚠️ [分配失败] 车辆 {vid} 路由至 {spot_id} 失败"
+            )
 
 
-def _process_driving(veh_stats, sub_results, current_time, cursor, conn, gui):
-    """行驶中车辆：指标更新、消失检测、泊车结算。"""
+def _process_driving(veh_stats, sub_results, current_time, all_spots, cursor, conn, gui):
+    """行驶中车辆：指标更新、消失检测、超时放弃、泊车结算。"""
     completed = 0
     teleported = 0
 
@@ -187,6 +193,24 @@ def _process_driving(veh_stats, sub_results, current_time, cursor, conn, gui):
         stats["last_dist"] = data[tc.VAR_DISTANCE]
         stats["total_fuel"] += data[tc.VAR_FUELCONSUMPTION]
         stats["speed"] = data[tc.VAR_SPEED]
+
+        # 超时检测：锁定车位后长时间未泊入则放弃
+        target_locked_at = stats.get("target_at", current_time)
+        if current_time - target_locked_at > TARGET_TIMEOUT:
+            old_target = stats["target_spot"]
+            if old_target and old_target in all_spots:
+                all_spots[old_target]["booked"] = max(0, all_spots[old_target]["booked"] - 1)
+            try:
+                traci.vehicle.setParkingAreaStop(vid, old_target, duration=0)
+            except traci.exceptions.TraCIException:
+                pass
+            stats["status"] = "teleported"
+            teleported += 1
+            _settle(vid, stats, current_time, None, cursor, conn)
+            if gui and vid == gui.current_protagonist:
+                traci.simulation.writeMessage(f"⏰ [超时] 司机 {vid} 未能到达 {old_target}")
+                gui.on_vehicle_parked(vid)
+            continue
 
         # 检测是否已停好
         try:
@@ -243,6 +267,9 @@ def run_smart_booking_with_pricing():
 
         gui.update(active, veh_stats, current_time)
 
+        # 每步更新浪涌定价
+        _compute_pricing(all_spots)
+
         # 新车初始化
         departed = traci.simulation.getDepartedIDList()
         if departed:
@@ -250,7 +277,9 @@ def run_smart_booking_with_pricing():
 
         # 行驶中车辆处理
         sub_results = traci.vehicle.getAllSubscriptionResults()
-        c, t = _process_driving(veh_stats, sub_results, current_time, cursor, conn, gui)
+        c, t = _process_driving(
+            veh_stats, sub_results, current_time, all_spots, cursor, conn, gui
+        )
         completed += c
         teleported += t
 

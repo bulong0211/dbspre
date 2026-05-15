@@ -4,7 +4,7 @@ import time
 import traci
 import traci.exceptions
 
-from config import (
+from .config import (
     HAS_GUI, GUI_ZOOM_DEFAULT, GUI_ZOOM_TRACKED,
     TRACK_SWITCH_COOLDOWN, TRACKING_VEHICLE_THRESHOLD,
     GUI_REFRESH_INTERVAL,

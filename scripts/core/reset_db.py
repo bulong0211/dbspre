@@ -1,6 +1,6 @@
 import sys
 
-from connection import get_db_connection
+from .connection import get_db_connection
 
 
 def reset_database(clear_logs=False, scenario_to_clear=None):
