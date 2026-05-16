@@ -183,8 +183,19 @@ def _process_driving(
         if stats["status"] != "driving":
             continue
 
-        # 车辆从路网中消失
+        # 订阅缺失：先检查是否实际已停好，再判定为 teleported
         if vid not in sub_results:
+            try:
+                if traci.vehicle.isStoppedParking(vid):
+                    target = stats["target_spot"]
+                    stats["status"] = "parked"
+                    _settle(vid, stats, current_time, target, cursor, conn)
+                    if gui and vid == gui.current_protagonist:
+                        gui.on_vehicle_parked(vid)
+                    completed += 1
+                    continue
+            except traci.exceptions.TraCIException:
+                pass
             stats["status"] = "teleported"
             teleported += 1
             _settle(vid, stats, current_time, None, cursor, conn)
