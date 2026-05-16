@@ -1,139 +1,113 @@
 <h1 align="center">ITS 智能停车分配与巡航减少仿真系统</h1>
 
 <p align="center">
-  <em>基于 SUMO、TraCI、PostgreSQL 与实时可视化的停车策略对比实验项目</em>
+  <em>基于 SUMO-GUI、Python TraCI、PostgreSQL、matplotlib 与 Streamlit 的停车策略仿真实验软件</em>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/SUMO-TraCI-orange.svg" alt="SUMO">
   <img src="https://img.shields.io/badge/Database-PostgreSQL-blue.svg" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/Visualization-Matplotlib%20%7C%20Streamlit-green.svg" alt="Visualization">
+  <img src="https://img.shields.io/badge/Dashboard-Streamlit-green.svg" alt="Streamlit">
 </p>
 
 > 多语言文档：中文 | [English](README.en.md) | [한국어](README.ko.md) | [日本語](README.ja.md)
 
 ---
 
-## 项目概览
+## 1. 项目简介
 
-本项目使用 **SUMO-GUI** 构建城市路网仿真，通过 **Python TraCI** 控制车辆行为，并使用 **PostgreSQL** 记录停车位状态和车辆寻位结果。项目的核心目标是对比传统盲目寻位模式与智能预订模式在停车巡航时间、成功停车数量、燃油消耗和路网速度上的差异。
+本项目用于研究城市停车搜索行为对交通系统的影响。软件使用 SUMO 构建城市路网和车辆流，通过 Python TraCI 在仿真运行时控制车辆、读取车辆状态并触发停车行为。PostgreSQL 负责保存停车位状态和车辆寻位日志，matplotlib 提供仿真过程实时监控，Streamlit 用于实验结果对比。
 
-当前实现包含两个主要实验脚本：
+项目包含两个可对比的实验场景：
 
-| 脚本 | 场景 | 行为逻辑 |
+| 场景 | 入口脚本 | 核心逻辑 |
 | --- | --- | --- |
-| `scripts/run_scenario_A_baseline.py` | 场景 A：全路网盲目寻位 | 车辆进入路网后沿街搜索空位；如果当前区域无空位，则继续改道巡航。 |
-| `scripts/run_scenario_B_smart.py` | 场景 B：智能预订 | 车辆生成时查询数据库，根据距离和动态价格选择可用车位并提前预订。 |
-
-场景脚本会把结果写入 `Cruising_Logs`，同时更新 `Parking_Spots` 的占用和价格字段。`scripts/run_dashboard.py` 用于从数据库读取真实存在的指标并生成对比看板。
+| 场景 A：基准盲目寻位 | `scripts/run_scenario_A_baseline.py` | 车辆进入路网后不知道全局车位状态，只能沿街扫描可见范围内的空车位；找不到时继续改道巡航。 |
+| 场景 B：智能预订与动态定价 | `scripts/run_scenario_B_smart.py` | 车辆生成时查询数据库，根据距离和当前价格选择可用车位，并提前预订和导航。 |
 
 ---
 
-## 当前重点变动
+## 2. 软件运行方法
 
-- 新增 `scripts/core/recording.py`，用于自动摆放 SUMO-GUI 与 matplotlib 窗口，并按需启动 ffmpeg 录屏。
-- `scripts/core/monitor.py` 的 matplotlib 窗口会自动放到屏幕右半侧，并在仿真循环暂未推进时保持响应。
-- 场景 A/B 脚本现在在 `finally` 中统一停止录制、关闭 TraCI、关闭可视化进程和数据库连接，减少中途退出后录制文件丢失的问题。
-- `configs/demo.sumocfg` 默认启动 SUMO-GUI 后暂停等待脚本控制，便于先完成窗口布局和录屏预热。
-- `.gitignore` 已忽略 `recordings/`，避免把本地录屏文件提交到仓库。
-
----
-
-## 项目结构
-
-```text
-dbspre/
-├── configs/
-│   ├── demo.sumocfg          # SUMO 主配置
-│   ├── demo.net.xml          # 路网
-│   ├── demo.rou.xml          # 车辆路线
-│   ├── parking.add.xml       # SUMO 停车区定义
-│   └── schema.sql            # PostgreSQL 表结构与初始车位数据
-├── scripts/
-│   ├── core/
-│   │   ├── config.py         # 全局路径、SUMO、数据库、录屏参数
-│   │   ├── db_utils.py       # 数据库连接与清理
-│   │   ├── gui_tracker.py    # SUMO-GUI 车辆高亮与跟踪
-│   │   ├── monitor.py        # matplotlib 实时监控窗口
-│   │   ├── parking_logic.py  # 场景 A/B 共用停车逻辑
-│   │   └── recording.py      # 窗口摆放与 ffmpeg 录屏
-│   ├── run_scenario_A_baseline.py
-│   ├── run_scenario_B_smart.py
-│   ├── run_dashboard.py
-│   ├── generate_parking.py
-│   ├── generate_traffic.py
-│   └── prepare_simulation.py
-├── recordings/               # 本地录屏输出，已被 git 忽略
-├── pyproject.toml
-└── README*.md
-```
-
----
-
-## 环境要求
+### 2.1 环境要求
 
 - Python 3.10 或更高版本
-- SUMO，并正确设置 `SUMO_HOME`
+- SUMO，并设置 `SUMO_HOME`
 - PostgreSQL
-- ffmpeg，可选，仅在 `ENABLE_SCREEN_RECORDING=True` 时需要
-- 推荐使用 `uv` 管理依赖；也可以使用普通 `pip`
+- ffmpeg，可选，仅在录屏开关开启时需要
+- 推荐使用 `uv` 安装依赖
 
-Windows PowerShell 示例：
+PowerShell 设置 SUMO 示例：
 
 ```powershell
 $env:SUMO_HOME = "C:\Program Files (x86)\Eclipse\Sumo"
 ```
 
-数据库连接写入项目根目录 `.env`：
+### 2.2 数据库配置
+
+项目根目录创建 `.env`：
 
 ```env
+DB_NAME=smart_parking
+DB_USER=postgres
+DB_PASSWORD=123456
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=parking
-DB_USER=postgres
-DB_PASSWORD=your_password
 ```
 
----
+`scripts/core/connection.py` 会读取这些环境变量；如果未设置，则使用上面的默认值。运行前需要先在 PostgreSQL 中创建数据库，例如：
 
-## 安装与准备
+```sql
+CREATE DATABASE smart_parking;
+```
+
+### 2.3 安装依赖
 
 ```powershell
 uv sync
 ```
 
-如果不使用 `uv`：
+如果不用 `uv`：
 
 ```powershell
 python -m pip install -r requirements.txt
 ```
 
-生成或刷新仿真资源：
+### 2.4 生成仿真资源并初始化数据库
 
 ```powershell
 uv run python scripts/prepare_simulation.py
 ```
 
-该步骤会根据脚本生成停车位、路线和数据库初始化 SQL。运行场景前请确保 PostgreSQL 数据库已经存在，并导入 `configs/schema.sql`。
+该脚本依次执行：
 
----
+1. `scripts/generate_network.ps1`：生成 SUMO 网格路网。
+2. `scripts/generate_parking.py`：生成停车位 XML 和数据库 SQL。
+3. `scripts/generate_traffic.py`：生成车辆出行需求。
+4. `scripts/init_db.py`：执行 `configs/schema.sql`，创建表并插入初始车位数据。
 
-## 运行场景
+也可以只初始化数据库：
 
-场景 A：
+```powershell
+uv run python scripts/init_db.py
+```
+
+### 2.5 运行场景实验
+
+运行场景 A：
 
 ```powershell
 uv run python scripts/run_scenario_A_baseline.py
 ```
 
-场景 B：
+运行场景 B：
 
 ```powershell
 uv run python scripts/run_scenario_B_smart.py
 ```
 
-结果看板：
+运行结果看板：
 
 ```powershell
 uv run streamlit run scripts/run_dashboard.py
@@ -141,9 +115,22 @@ uv run streamlit run scripts/run_dashboard.py
 
 ---
 
-## 可视化与录屏流程
+## 3. 运行流程
 
-录屏由 `scripts/core/config.py` 中的开关控制：
+场景脚本的通用执行流程如下：
+
+1. 重置数据库车位状态，必要时清理对应场景日志。
+2. 连接 PostgreSQL。
+3. 加载 `Parking_Spots`、SUMO 路网和停车区数据。
+4. 启动 SUMO-GUI。
+5. 创建 matplotlib 实时监控窗口。
+6. 若 `ENABLE_SCREEN_RECORDING=True`，自动启动 ffmpeg 录制。
+7. 进入 `traci.simulationStep()` 主循环。
+8. 每步处理新车、车辆状态、停车事件、燃油和距离指标。
+9. 按 `DB_SYNC_INTERVAL` 同步车位状态到数据库。
+10. 仿真结束或中断时关闭录制、TraCI、监控窗口和数据库连接。
+
+录制开关位于 `scripts/core/config.py`：
 
 ```python
 ENABLE_SCREEN_RECORDING = True
@@ -152,66 +139,211 @@ RECORDING_FPS = 30
 RECORDING_PREROLL_SECONDS = 1.0
 ```
 
-当 `ENABLE_SCREEN_RECORDING=True` 时，场景脚本的启动顺序为：
-
-1. 启动 SUMO-GUI，但暂不推进仿真。
-2. 创建 matplotlib 实时监控窗口。
-3. 自动把 SUMO-GUI 放到屏幕左半侧，把 matplotlib 放到屏幕右半侧。
-4. 启动 ffmpeg 录制桌面。
-5. 等待 `RECORDING_PREROLL_SECONDS`。
-6. 开始执行 `traci.simulationStep()`。
-7. 仿真结束或脚本中途退出时，在 `finally` 中停止录制并关闭资源。
-
-录制文件输出到 `recordings/`。如果不需要录制，将 `ENABLE_SCREEN_RECORDING` 改为 `False` 即可，场景脚本仍会正常运行。
+录制输出目录 `recordings/` 已被 `.gitignore` 忽略。
 
 ---
 
-## 数据库表
+## 4. 数据库设计
 
-### `Parking_Spots`
+数据库结构由 `configs/schema.sql` 定义，核心包含一个枚举类型和两张表。
 
-记录所有车位或停车区的基础属性与实时状态。
+### 4.1 枚举类型：`spot_category`
 
-| 字段 | 含义 |
-| --- | --- |
-| `spot_id` | 车位或停车区唯一 ID |
-| `edge_id` | 所属 SUMO 路段 |
-| `spot_type` | `on-street` 或 `off-street` |
-| `capacity` | 容量 |
-| `occupied` | 当前占用或预订数量 |
-| `base_price` | 基础价格 |
-| `current_price` | 当前动态价格 |
+```sql
+CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
+```
 
-### `Cruising_Logs`
+用于区分路内停车位和路外停车场。
 
-记录车辆从进入路网到完成停车或失败退出的寻位结果。
+### 4.2 表：`Parking_Spots`
 
-| 字段 | 含义 |
-| --- | --- |
-| `vehicle_id` | SUMO 车辆 ID |
-| `scenario` | 实验场景名称 |
-| `search_time_sec` | 寻位耗时 |
-| `cruising_distance_m` | 寻位距离 |
-| `final_spot_id` | 最终停车位 |
-| `total_fuel_mg` | 寻位期间燃油消耗 |
-| `created_at` | 日志写入时间 |
+保存停车位或停车区的静态属性和实时状态。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `spot_id` | `VARCHAR(50)` | 主键，SUMO 停车区 ID。 |
+| `edge_id` | `VARCHAR(50)` | 所属 SUMO 道路边 ID。 |
+| `spot_type` | `spot_category` | `on-street` 或 `off-street`。 |
+| `capacity` | `INT` | 车位容量。 |
+| `occupied` | `INT` | 当前占用或预订数量。 |
+| `base_price` | `DECIMAL(5,2)` | 基础价格。 |
+| `current_price` | `DECIMAL(5,2)` | 场景 B 中实时更新的动态价格。 |
+
+### 4.3 表：`Cruising_Logs`
+
+保存每辆车的寻位结果。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `log_id` | `SERIAL` | 主键。 |
+| `vehicle_id` | `VARCHAR(50)` | SUMO 车辆 ID。 |
+| `scenario` | `VARCHAR(20)` | 场景名称，如 `Baseline` 或 `Smart_Booking_Priced`。 |
+| `search_time_sec` | `FLOAT` | 从车辆生成到停车或失败的时间。 |
+| `cruising_distance_m` | `FLOAT` | 寻位巡航距离；场景 B 预订模式下写入 0。 |
+| `final_spot_id` | `VARCHAR(50)` | 最终停车位；失败或消失时为 `NULL`。 |
+| `created_at` | `TIMESTAMP` | 写入时间。 |
+| `total_fuel_mg` | `FLOAT` | 寻位过程累计燃油消耗。 |
 
 ---
 
-## 关键参数
+## 5. 项目结构
 
-| 参数 | 当前用途 |
-| --- | --- |
-| `SIGHT_DISTANCE = 180.0` | 场景 A 中车辆沿街观察可用车位的距离阈值，单位为米。 |
-| `DB_SYNC_INTERVAL` | 控制仿真状态写回数据库的间隔。 |
-| `PLOTTER_UPDATE_INTERVAL` | 控制 matplotlib 监控数据刷新间隔。 |
-| `ENABLE_SCREEN_RECORDING` | 是否开启 ffmpeg 桌面录制。 |
-| `RECORDING_PREROLL_SECONDS` | 开始推进 SUMO 仿真前的录制预热时间。 |
+```text
+dbspre/
+├── configs/
+│   ├── demo.sumocfg          # SUMO 主配置
+│   ├── demo.net.xml          # 路网文件
+│   ├── demo.rou.xml          # 车辆路线文件
+│   ├── demo.trips.xml        # OD 出行需求
+│   ├── gui-settings.xml      # SUMO-GUI 显示配置
+│   ├── parking.add.xml       # 停车区配置
+│   └── schema.sql            # 数据库结构与初始数据
+├── scripts/
+│   ├── core/                 # 共享核心模块
+│   ├── generate_network.ps1  # 路网生成脚本
+│   ├── generate_parking.py   # 停车区与 SQL 生成
+│   ├── generate_traffic.py   # 交通流生成
+│   ├── init_db.py            # 数据库初始化
+│   ├── prepare_simulation.py # 一键准备脚本
+│   ├── run_dashboard.py      # Streamlit 看板
+│   ├── run_scenario_A_baseline.py
+│   └── run_scenario_B_smart.py
+└── pyproject.toml
+```
 
 ---
 
-## 说明
+## 6. 核心配置参数
 
-- 本项目以数据库中实际记录的指标为准，不在报告或看板中伪造未采集的数据。
-- ffmpeg 录制目前按 Windows `gdigrab` 配置；非 Windows 环境会自动跳过录制。
-- SUMO、PostgreSQL 和 ffmpeg 都依赖本机环境配置，首次运行时优先检查环境变量、数据库连接和 PATH。
+主要参数位于 `scripts/core/config.py`。
+
+| 参数 | 默认值 | 作用 |
+| --- | --- | --- |
+| `CONFIG_DIR` | `configs/` | SUMO 与 SQL 配置目录。 |
+| `HAS_GUI` | `True` | 使用 `sumo-gui` 或无界面 `sumo`。 |
+| `SIMULATION_DURATION_LIMIT` | `7200` | 最大仿真时间，单位秒。 |
+| `TOTAL_VEHICLES_TARGET` | `2500` | 目标车辆数量。 |
+| `PARKING_DURATION` | `7200` | 停车持续时间。 |
+| `SIGHT_DISTANCE` | `180.0` | 场景 A 沿街可视寻位距离。 |
+| `SPOT_STOP_MARGIN` | `3.0` | 尝试停车所需最小前方距离。 |
+| `INTERSECTION_LOOKAHEAD` | `40.0` | 路口前方观察距离。 |
+| `TARGET_TIMEOUT` | `120` | 锁定目标车位后的超时时间。 |
+| `PLOTTER_UPDATE_INTERVAL` | `5` | matplotlib 刷新间隔。 |
+| `DB_SYNC_INTERVAL` | `60` | 数据库同步间隔。 |
+| `WEIGHT_DISTANCE` | `1.0` | 场景 B 成本函数中的距离权重。 |
+| `WEIGHT_PRICE` | `100.0` | 场景 B 成本函数中的价格权重。 |
+
+---
+
+## 7. 模块与函数说明
+
+### 7.1 `scripts/core/connection.py`
+
+| 函数 | 功能 |
+| --- | --- |
+| `get_db_config()` | 从 `.env` 或环境变量读取 PostgreSQL 连接参数。 |
+| `get_db_connection()` | 创建并返回 `psycopg2` 数据库连接对象。 |
+
+### 7.2 `scripts/core/db_ops.py`
+
+| 函数 | 功能 |
+| --- | --- |
+| `log_cruise(cursor, vid, scenario, search_time, cruise_dist, total_fuel, spot_id)` | 向 `Cruising_Logs` 插入车辆寻位结果。 |
+| `sync_spots(cursor, conn, spots_data)` | 将场景 A 的 `occupied` 状态批量同步到 `Parking_Spots`。 |
+| `sync_spots_priced(cursor, conn, spots_data)` | 将场景 B 的 `occupied` 和 `current_price` 批量同步到数据库。 |
+
+### 7.3 `scripts/core/parking_logic.py`
+
+| 函数 | 功能 |
+| --- | --- |
+| `reroute_random()` | 为车辆选择新的随机目标道路，避免当前边、对向边和直接相邻边。 |
+| `scan_street()` | 根据车辆当前位置、视距、路口观察距离和车位占用状态扫描候选空位。 |
+| `try_park()` | 对当前道路车位调用 `setParkingAreaStop`；对其他道路车位先 `changeTarget` 并记录 pending 状态。 |
+| `check_pending()` | 车辆到达 pending 车位所在道路后尝试真正停车。 |
+| `handle_occupied()` | 目标车位失效、已满或车辆驶离目标道路时取消目标并重新寻路。 |
+
+### 7.4 `scripts/core/gui_tracker.py`
+
+| 类/方法 | 功能 |
+| --- | --- |
+| `GUITracker` | 管理 SUMO-GUI 镜头跟随车辆。 |
+| `update(active_vehicles, veh_stats, current_time)` | 按间隔选择或维护被跟随车辆，并调整 SUMO-GUI 镜头。 |
+| `current_protagonist` | 返回当前被跟随车辆 ID。 |
+| `on_vehicle_parked(vid)` | 被跟随车辆停车后释放镜头目标。 |
+
+### 7.5 `scripts/core/monitor.py`
+
+| 类/函数 | 功能 |
+| --- | --- |
+| `MultiprocessingPlotter` | 在独立进程中绘制实时 matplotlib 监控图。 |
+| `send_data(step, veh_stats)` | 从车辆状态中提取停车数、平均时间、燃油、速度等指标并发送给绘图进程。 |
+| `close()` | 向绘图进程发送停止信号并等待退出。 |
+| `_render_full()` | 场景 A 的 6 图监控面板。 |
+| `_render_compact()` | 场景 B 的 4 图监控面板。 |
+
+### 7.6 `scripts/core/recording.py`
+
+| 类/函数 | 功能 |
+| --- | --- |
+| `place_sumo_left_half()` | 在 Windows 上将 SUMO-GUI 窗口移动到屏幕左半侧。 |
+| `ScreenRecorder.start()` | 使用 ffmpeg `gdigrab` 开始桌面录制。 |
+| `ScreenRecorder.stop()` | 优雅停止 ffmpeg，确保中途退出时尽量产出可用视频。 |
+| `prepare_visual_session()` | 执行窗口摆放、启动录制和预热等待。 |
+
+### 7.7 `scripts/core/reset_db.py`
+
+| 函数 | 功能 |
+| --- | --- |
+| `reset_database(clear_logs=False, scenario_to_clear=None)` | 重置车位占用和价格；可选择清空全部日志或指定场景日志。 |
+
+### 7.8 `scripts/run_scenario_A_baseline.py`
+
+| 函数 | 功能 |
+| --- | --- |
+| `_load_spots()` | 从数据库和 `parking.add.xml` 加载车位容量、道路和起点位置。 |
+| `_load_edges()` | 从 `demo.net.xml` 提取普通道路的端点、节点和长度。 |
+| `_build_opposite_map()` | 构造每条道路的对向道路映射。 |
+| `_build_outgoing_map()` | 构造每条道路的下游可选道路映射。 |
+| `_spots_by_edge()` | 将车位按道路分组，提升沿街扫描效率。 |
+| `_init_stats()` | 初始化车辆状态字典。 |
+| `_settle()` | 记录成功停车车辆的寻位日志。 |
+| `_settle_lost()` | 记录消失或失败车辆的日志。 |
+| `_process_vehicle()` | 场景 A 单车步进逻辑：累计指标、扫描车位、停车、超时和重路由。 |
+| `run_baseline()` | 场景 A 主入口。 |
+
+### 7.9 `scripts/run_scenario_B_smart.py`
+
+| 函数 | 功能 |
+| --- | --- |
+| `_load_spots()` | 从数据库加载车位容量、价格和所属道路。 |
+| `_compute_positions()` | 在 TraCI 启动后计算停车位道路坐标。 |
+| `_compute_pricing()` | 按占用率更新动态价格：超过 70% 为 1.5 倍，超过 90% 为 2 倍。 |
+| `_find_best_spot()` | 使用 `距离 * WEIGHT_DISTANCE + 价格 * WEIGHT_PRICE` 选择最优车位。 |
+| `_assign_vehicle()` | 设置车辆目标道路、停车区停止命令并初始化车辆状态。 |
+| `_settle()` | 将车辆结果写入 `Cruising_Logs`。 |
+| `_handle_departed()` | 处理新生成车辆并为其分配车位。 |
+| `_process_driving()` | 更新行驶车辆指标，检测停车成功或车辆消失。 |
+| `run_smart_booking_with_pricing()` | 场景 B 主入口。 |
+
+### 7.10 其他脚本
+
+| 脚本/函数 | 功能 |
+| --- | --- |
+| `scripts/init_db.py::init_database()` | 读取并执行 `configs/schema.sql`，创建数据库表并写入初始车位数据。 |
+| `scripts/prepare_simulation.py::run_step()` | 执行单个准备步骤并检查退出码。 |
+| `scripts/prepare_simulation.py::main()` | 串联路网、停车、交通流和数据库初始化。 |
+| `scripts/run_dashboard.py::fetch_data()` | 从 `Cruising_Logs` 聚合场景指标，供 Streamlit 看板使用。 |
+
+---
+
+## 8. 输出数据与指标口径
+
+项目只使用数据库中真实记录的指标：
+
+- 成功停车数量：`final_spot_id IS NOT NULL`
+- 失败或消失数量：`final_spot_id IS NULL`
+- 平均寻位时间：`AVG(search_time_sec)`
+- 总油耗：`SUM(total_fuel_mg)`
+- 场景 A 巡航距离：`SUM(cruising_distance_m)`
+
+如果某项指标没有被脚本采集或没有写入数据库，就不应在论文、报告或看板中当作实测结果使用。
