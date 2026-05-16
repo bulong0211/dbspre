@@ -134,14 +134,14 @@ def _assign_vehicle(vid, spot_id, all_spots, veh_stats, current_time):
 # 车辆处理
 # ---------------------------------------------------------------------------
 def _settle(vid, stats, current_time, spot_id, cursor, conn):
-    """结算车辆巡航日志。"""
+    """结算车辆行驶日志。"""
     stats["search_time"] = current_time - stats["spawn_time"]
     log_cruise(
         cursor,
         vid,
         SCENARIO_B_NAME,
         stats["search_time"],
-        stats.get("last_dist", 0.0),
+        0,  # 场景B为预订模式，不存在巡航绕圈行为
         stats.get("total_fuel", 0.0),
         spot_id,
     )
@@ -172,7 +172,9 @@ def _handle_departed(departed, all_spots, veh_stats, current_time):
             )
 
 
-def _process_driving(veh_stats, sub_results, current_time, all_spots, cursor, conn, gui):
+def _process_driving(
+    veh_stats, sub_results, current_time, all_spots, cursor, conn, gui
+):
     """行驶中车辆：指标更新、消失检测、超时放弃、泊车结算。"""
     completed = 0
     teleported = 0
@@ -199,7 +201,9 @@ def _process_driving(veh_stats, sub_results, current_time, all_spots, cursor, co
         if current_time - target_locked_at > TARGET_TIMEOUT:
             old_target = stats["target_spot"]
             if old_target and old_target in all_spots:
-                all_spots[old_target]["booked"] = max(0, all_spots[old_target]["booked"] - 1)
+                all_spots[old_target]["booked"] = max(
+                    0, all_spots[old_target]["booked"] - 1
+                )
             try:
                 traci.vehicle.setParkingAreaStop(vid, old_target, duration=0)
             except traci.exceptions.TraCIException:
@@ -208,7 +212,9 @@ def _process_driving(veh_stats, sub_results, current_time, all_spots, cursor, co
             teleported += 1
             _settle(vid, stats, current_time, None, cursor, conn)
             if gui and vid == gui.current_protagonist:
-                traci.simulation.writeMessage(f"⏰ [超时] 司机 {vid} 未能到达 {old_target}")
+                traci.simulation.writeMessage(
+                    f"⏰ [超时] 司机 {vid} 未能到达 {old_target}"
+                )
                 gui.on_vehicle_parked(vid)
             continue
 
@@ -304,10 +310,7 @@ def run_smart_booking_with_pricing():
     # 收尾
     print("💾 同步最终车位预订与价格状态...")
     sync_spots_priced(cursor, conn, all_spots)
-    print(
-        f"🏁 场景 B 结束。t={current_time:.0f}s "
-        f"完成={completed} 丢失={teleported}"
-    )
+    print(f"🏁 场景 B 结束。t={current_time:.0f}s 完成={completed} 丢失={teleported}")
 
     for obj in (traci, plotter, cursor, conn):
         try:
