@@ -26,6 +26,8 @@
 | 场景 A：基准盲目寻位 | `scripts/run_scenario_A_baseline.py` | 车辆进入路网后不知道全局车位状态，只能沿街扫描可见范围内的空车位；找不到时继续改道巡航。 |
 | 场景 B：智能预订与动态定价 | `scripts/run_scenario_B_smart.py` | 车辆生成时查询数据库，根据距离和当前价格选择可用车位，并提前预订和导航。 |
 
+当前实验中两个场景都能在 2 小时仿真上限内完成全部车辆停放，停放率均为 100%。因此成功率只作为事实陈述，核心比较指标改为“完成全部车辆停放所需的全局仿真时间”。
+
 ---
 
 ## 2. 软件运行方法
@@ -128,7 +130,8 @@ uv run streamlit run scripts/run_dashboard.py
 7. 进入 `traci.simulationStep()` 主循环。
 8. 每步处理新车、车辆状态、停车事件、燃油和距离指标。
 9. 按 `DB_SYNC_INTERVAL` 同步车位状态到数据库。
-10. 仿真结束或中断时关闭录制、TraCI、监控窗口和数据库连接。
+10. 将场景运行摘要写入 `Simulation_Runs`，记录完成全部停放所需仿真时间、总车辆数、成功数、失败数和停放率。
+11. 仿真结束或中断时关闭录制、TraCI、监控窗口和数据库连接。
 
 录制开关位于 `scripts/core/config.py`：
 
@@ -145,7 +148,7 @@ RECORDING_PREROLL_SECONDS = 1.0
 
 ## 4. 数据库设计
 
-数据库结构由 `configs/schema.sql` 定义，核心包含一个枚举类型和两张表。
+数据库结构由 `configs/schema.sql` 定义，核心包含一个枚举类型和三张表。
 
 ### 4.1 枚举类型：`spot_category`
 
@@ -184,13 +187,37 @@ CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
 | `created_at` | `TIMESTAMP` | 写入时间。 |
 | `total_fuel_mg` | `FLOAT` | 寻位过程累计燃油消耗。 |
 
+### 4.4 表：`Simulation_Runs`
+
+保存每次场景运行的全局摘要，用于比较完成全部车辆停放所需的仿真时间。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `run_id` | `SERIAL` | 主键。 |
+| `scenario` | `VARCHAR(20)` | 场景名称。 |
+| `completion_time_sec` | `FLOAT` | 该场景完成全部已处理车辆停放所需的全局仿真时间。 |
+| `total_vehicles` | `INT` | 本次运行处理的车辆数。 |
+| `parked_vehicles` | `INT` | 成功停放车辆数。 |
+| `failed_vehicles` | `INT` | 失败或消失车辆数。 |
+| `parking_rate` | `FLOAT` | 停放率，等于 `parked_vehicles / total_vehicles`。 |
+| `created_at` | `TIMESTAMP` | 摘要写入时间。 |
+
 ---
 
 ## 5. 项目结构
 
 ```text
 dbspre/
+├── .gitignore
+├── .python-version
+├── pyproject.toml
+├── uv.lock
+├── README.md
+├── README.en.md
+├── README.ko.md
+├── README.ja.md
 ├── configs/
+│   ├── cbd.poly.xml          # SUMO 多边形/区域辅助文件
 │   ├── demo.sumocfg          # SUMO 主配置
 │   ├── demo.net.xml          # 路网文件
 │   ├── demo.rou.xml          # 车辆路线文件
@@ -199,16 +226,25 @@ dbspre/
 │   ├── parking.add.xml       # 停车区配置
 │   └── schema.sql            # 数据库结构与初始数据
 ├── scripts/
-│   ├── core/                 # 共享核心模块
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── config.py         # 全局配置、SUMO 启动命令与仿真参数
+│   │   ├── connection.py     # PostgreSQL 连接
+│   │   ├── db_ops.py         # 日志、运行摘要与车位同步
+│   │   ├── gui_tracker.py    # SUMO-GUI 镜头跟随
+│   │   ├── monitor.py        # matplotlib 实时监控
+│   │   ├── parking_logic.py  # 场景 A 沿街寻位逻辑
+│   │   ├── recording.py      # ffmpeg 录屏与窗口摆放
+│   │   └── reset_db.py       # 数据库状态重置
 │   ├── generate_network.ps1  # 路网生成脚本
 │   ├── generate_parking.py   # 停车区与 SQL 生成
 │   ├── generate_traffic.py   # 交通流生成
 │   ├── init_db.py            # 数据库初始化
 │   ├── prepare_simulation.py # 一键准备脚本
 │   ├── run_dashboard.py      # Streamlit 看板
-│   ├── run_scenario_A_baseline.py
-│   └── run_scenario_B_smart.py
-└── pyproject.toml
+│   ├── run_scenario_A_baseline.py # 场景 A 主程序
+│   └── run_scenario_B_smart.py    # 场景 B 主程序
+└── recordings/               # 本地录屏输出，默认不应提交
 ```
 
 ---
@@ -248,7 +284,9 @@ dbspre/
 
 | 函数 | 功能 |
 | --- | --- |
+| `ensure_simulation_runs_table(cursor)` | 确保 `Simulation_Runs` 运行摘要表存在。 |
 | `log_cruise(cursor, vid, scenario, search_time, cruise_dist, total_fuel, spot_id)` | 向 `Cruising_Logs` 插入车辆寻位结果。 |
+| `log_run_summary(...)` | 向 `Simulation_Runs` 插入场景级运行摘要。 |
 | `sync_spots(cursor, conn, spots_data)` | 将场景 A 的 `occupied` 状态批量同步到 `Parking_Spots`。 |
 | `sync_spots_priced(cursor, conn, spots_data)` | 将场景 B 的 `occupied` 和 `current_price` 批量同步到数据库。 |
 
@@ -317,6 +355,8 @@ dbspre/
 | --- | --- |
 | `_load_spots()` | 从数据库加载车位容量、价格和所属道路。 |
 | `_compute_positions()` | 在 TraCI 启动后计算停车位道路坐标。 |
+| `_build_pricing_index()` | 预计算路边车位街道分组和路外停车场索引，减少每步重复聚合。 |
+| `_price_from_rate()` | 根据占用率返回基础价、1.5 倍或 2 倍价格。 |
 | `_compute_pricing()` | 按占用率更新动态价格：超过 70% 为 1.5 倍，超过 90% 为 2 倍。 |
 | `_find_best_spot()` | 使用 `距离 * WEIGHT_DISTANCE + 价格 * WEIGHT_PRICE` 选择最优车位。 |
 | `_assign_vehicle()` | 设置车辆目标道路、停车区停止命令并初始化车辆状态。 |
@@ -332,7 +372,7 @@ dbspre/
 | `scripts/init_db.py::init_database()` | 读取并执行 `configs/schema.sql`，创建数据库表并写入初始车位数据。 |
 | `scripts/prepare_simulation.py::run_step()` | 执行单个准备步骤并检查退出码。 |
 | `scripts/prepare_simulation.py::main()` | 串联路网、停车、交通流和数据库初始化。 |
-| `scripts/run_dashboard.py::fetch_data()` | 从 `Cruising_Logs` 聚合场景指标，供 Streamlit 看板使用。 |
+| `scripts/run_dashboard.py::fetch_data()` | 从 `Cruising_Logs` 与 `Simulation_Runs` 聚合场景指标，供 Streamlit 看板使用。 |
 
 ---
 
@@ -343,7 +383,11 @@ dbspre/
 - 成功停车数量：`final_spot_id IS NOT NULL`
 - 失败或消失数量：`final_spot_id IS NULL`
 - 平均寻位时间：`AVG(search_time_sec)`
+- 完成全部停放时间：`Simulation_Runs.completion_time_sec`
+- 停放率：`Simulation_Runs.parking_rate`
 - 总油耗：`SUM(total_fuel_mg)`
 - 场景 A 巡航距离：`SUM(cruising_distance_m)`
+
+当前实验结果中两个场景均达到 100% 停放率，因此文档、看板和报告不再将成功率作为主要比较指标；核心比较对象是完成全部车辆停放所需的全局仿真时间。
 
 如果某项指标没有被脚本采集或没有写入数据库，就不应在论文、报告或看板中当作实测结果使用。

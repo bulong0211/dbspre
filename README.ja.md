@@ -26,6 +26,8 @@
 | シナリオ A: 基準の盲目的探索 | `scripts/run_scenario_A_baseline.py` | 車両は全体の駐車状態を知らず、可視範囲内の路上駐車スペースだけを探します。空きがなければ経路変更を続けます。 |
 | シナリオ B: スマート予約と動的価格 | `scripts/run_scenario_B_smart.py` | 車両出発時にデータベースを照会し、距離と現在価格に基づいて利用可能なスペースを選択して予約します。 |
 
+現在の実験では、両シナリオとも 2 時間のシミュレーション上限内に全車両の駐車を完了し、駐車率はいずれも 100% です。そのため駐車率は事実として示すだけにし、主な比較指標は全車両の駐車完了に必要な全体シミュレーション時間とします。
+
 ---
 
 ## 2. ソフトウェア実行方法
@@ -128,7 +130,8 @@ uv run streamlit run scripts/run_dashboard.py
 7. `traci.simulationStep()` メインループに入ります。
 8. 出発車両、車両状態、駐車イベント、燃料、距離指標を処理します。
 9. `DB_SYNC_INTERVAL` ごとに駐車状態を PostgreSQL に同期します。
-10. 完了または中断時に録画、TraCI、プロッター、DB 接続を閉じます。
+10. `Simulation_Runs` にシナリオ実行サマリーを書き込みます。完了時間、総車両数、成功数、失敗数、駐車率を含みます。
+11. 完了または中断時に録画、TraCI、プロッター、DB 接続を閉じます。
 
 録画設定は `scripts/core/config.py` にあります。
 
@@ -145,7 +148,7 @@ RECORDING_PREROLL_SECONDS = 1.0
 
 ## 4. データベース設計
 
-データベース構造は `configs/schema.sql` で定義され、1 つの enum 型と 2 つの主要テーブルを含みます。
+データベース構造は `configs/schema.sql` で定義され、1 つの enum 型と 3 つの主要テーブルを含みます。
 
 ### 4.1 Enum: `spot_category`
 
@@ -184,31 +187,64 @@ CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
 | `created_at` | `TIMESTAMP` | 記録時刻。 |
 | `total_fuel_mg` | `FLOAT` | 探索中の累積燃料消費。 |
 
+### 4.4 テーブル: `Simulation_Runs`
+
+シナリオ実行ごとの全体サマリーを保存します。ダッシュボードはこのテーブルを使い、全車両の駐車完了に必要なシミュレーション時間を比較します。
+
+| フィールド | 型 | 説明 |
+| --- | --- | --- |
+| `run_id` | `SERIAL` | 主キー。 |
+| `scenario` | `VARCHAR(20)` | シナリオ名。 |
+| `completion_time_sec` | `FLOAT` | 処理済み全車両の駐車完了に必要な全体シミュレーション時間。 |
+| `total_vehicles` | `INT` | その実行で処理した車両数。 |
+| `parked_vehicles` | `INT` | 駐車に成功した車両数。 |
+| `failed_vehicles` | `INT` | 失敗または消失した車両数。 |
+| `parking_rate` | `FLOAT` | `parked_vehicles / total_vehicles` で計算される駐車率。 |
+| `created_at` | `TIMESTAMP` | サマリー記録時刻。 |
+
 ---
 
 ## 5. プロジェクト構成
 
 ```text
 dbspre/
+├── .gitignore
+├── .python-version
+├── pyproject.toml
+├── uv.lock
+├── README.md
+├── README.en.md
+├── README.ko.md
+├── README.ja.md
 ├── configs/
-│   ├── demo.sumocfg
-│   ├── demo.net.xml
-│   ├── demo.rou.xml
-│   ├── demo.trips.xml
-│   ├── gui-settings.xml
-│   ├── parking.add.xml
-│   └── schema.sql
+│   ├── cbd.poly.xml          # SUMO ポリゴン/領域補助ファイル
+│   ├── demo.sumocfg          # SUMO メイン設定
+│   ├── demo.net.xml          # 道路網
+│   ├── demo.rou.xml          # 車両ルート
+│   ├── demo.trips.xml        # OD 需要
+│   ├── gui-settings.xml      # SUMO-GUI 表示設定
+│   ├── parking.add.xml       # 駐車エリア定義
+│   └── schema.sql            # DB スキーマと初期駐車データ
 ├── scripts/
 │   ├── core/
-│   ├── generate_network.ps1
-│   ├── generate_parking.py
-│   ├── generate_traffic.py
-│   ├── init_db.py
-│   ├── prepare_simulation.py
-│   ├── run_dashboard.py
-│   ├── run_scenario_A_baseline.py
-│   └── run_scenario_B_smart.py
-└── pyproject.toml
+│   │   ├── __init__.py
+│   │   ├── config.py         # グローバル設定、SUMO コマンド、シミュレーションパラメータ
+│   │   ├── connection.py     # PostgreSQL 接続
+│   │   ├── db_ops.py         # ログ、実行サマリー、駐車状態同期
+│   │   ├── gui_tracker.py    # SUMO-GUI カメラ追跡
+│   │   ├── monitor.py        # matplotlib リアルタイムモニター
+│   │   ├── parking_logic.py  # シナリオ A 路上探索ロジック
+│   │   ├── recording.py      # ffmpeg 録画とウィンドウ配置
+│   │   └── reset_db.py       # DB リセット補助
+│   ├── generate_network.ps1  # 道路網生成
+│   ├── generate_parking.py   # 駐車 XML と SQL 生成
+│   ├── generate_traffic.py   # 交通需要生成
+│   ├── init_db.py            # DB 初期化
+│   ├── prepare_simulation.py # 一括準備スクリプト
+│   ├── run_dashboard.py      # Streamlit ダッシュボード
+│   ├── run_scenario_A_baseline.py # シナリオ A メインプログラム
+│   └── run_scenario_B_smart.py    # シナリオ B メインプログラム
+└── recordings/               # ローカル録画出力、コミット対象外
 ```
 
 ---
@@ -248,7 +284,9 @@ dbspre/
 
 | 関数 | 機能 |
 | --- | --- |
+| `ensure_simulation_runs_table(cursor)` | `Simulation_Runs` 実行サマリーテーブルが存在することを保証します。 |
 | `log_cruise()` | 車両探索結果を 1 件 `Cruising_Logs` に挿入します。 |
+| `log_run_summary()` | シナリオ単位の実行サマリーを `Simulation_Runs` に挿入します。 |
 | `sync_spots()` | シナリオ A の `occupied` 状態を `Parking_Spots` に一括反映します。 |
 | `sync_spots_priced()` | シナリオ B の `occupied` と `current_price` を一括反映します。 |
 
@@ -317,6 +355,8 @@ dbspre/
 | --- | --- |
 | `_load_spots()` | DB から駐車容量、価格、edge 情報を読み込みます。 |
 | `_compute_positions()` | TraCI 起動後に駐車スペースの edge 座標を計算します。 |
+| `_build_pricing_index()` | 反復集計を減らすため、路上駐車グループと路外駐車場インデックスを事前計算します。 |
+| `_price_from_rate()` | 占有率に応じて基本価格、1.5 倍、2 倍価格を返します。 |
 | `_compute_pricing()` | 占有率 70% 超で 1.5 倍、90% 超で 2 倍に価格更新します。 |
 | `_find_best_spot()` | 距離と価格に基づいて最小コストの駐車スペースを選択します。 |
 | `_assign_vehicle()` | 目標 edge、駐車停止コマンド、初期車両状態を設定します。 |
@@ -332,7 +372,7 @@ dbspre/
 | `scripts/init_db.py::init_database()` | `configs/schema.sql` を読み込んで実行します。 |
 | `scripts/prepare_simulation.py::run_step()` | 単一準備ステップを実行し、終了コードを確認します。 |
 | `scripts/prepare_simulation.py::main()` | 道路網、駐車、交通、データベース準備を順に実行します。 |
-| `scripts/run_dashboard.py::fetch_data()` | Streamlit 用のシナリオ指標を `Cruising_Logs` から集計します。 |
+| `scripts/run_dashboard.py::fetch_data()` | Streamlit 用のシナリオ指標を `Cruising_Logs` と `Simulation_Runs` から集計します。 |
 
 ---
 
@@ -343,7 +383,11 @@ dbspre/
 - 駐車成功数: `final_spot_id IS NOT NULL`
 - 失敗または消失数: `final_spot_id IS NULL`
 - 平均探索時間: `AVG(search_time_sec)`
+- 全車両駐車完了時間: `Simulation_Runs.completion_time_sec`
+- 駐車率: `Simulation_Runs.parking_rate`
 - 総燃料消費: `SUM(total_fuel_mg)`
 - シナリオ A 巡航距離: `SUM(cruising_distance_m)`
+
+現在は両シナリオとも 100% の駐車率に達するため、レポートとダッシュボードでは成功率を主要比較指標として扱いません。主な比較対象は、全車両の駐車完了に必要な全体シミュレーション時間です。
 
 収集されていない、またはデータベースに書き込まれていない指標を、レポート、論文、ダッシュボードで実測結果として扱うべきではありません。

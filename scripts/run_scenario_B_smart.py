@@ -18,7 +18,7 @@ from core.config import (
     sumoCmd,
 )
 from core.connection import get_db_connection
-from core.db_ops import log_cruise, sync_spots_priced
+from core.db_ops import log_cruise, log_run_summary, sync_spots_priced
 from core.gui_tracker import GUITracker
 from core.monitor import MultiprocessingPlotter
 from core.recording import prepare_visual_session
@@ -57,32 +57,47 @@ def _compute_positions(all_spots):
 # ---------------------------------------------------------------------------
 # 浪涌定价
 # ---------------------------------------------------------------------------
-def _compute_pricing(all_spots):
-    """按街道维度聚合小容量路边车位，依据占用率阶梯式涨价。"""
-    street_stats = {}
-    for data in all_spots.values():
+def _build_pricing_index(all_spots):
+    """预计算动态定价分组，避免每个仿真步重复构造街道聚合字典。"""
+    street_groups = {}
+    lot_spots = []
+
+    for sid, data in all_spots.items():
         if data["capacity"] <= STREET_SPOT_THRESHOLD:
             eid = data["edge"]
-            if eid not in street_stats:
-                street_stats[eid] = {"total_capacity": 0, "total_booked": 0}
-            street_stats[eid]["total_capacity"] += data["capacity"]
-            street_stats[eid]["total_booked"] += data["booked"]
-
-    for data in all_spots.values():
-        if data["capacity"] > STREET_SPOT_THRESHOLD:
-            rate = data["booked"] / data["capacity"]
+            if eid not in street_groups:
+                street_groups[eid] = {"spot_ids": [], "total_capacity": 0}
+            street_groups[eid]["spot_ids"].append(sid)
+            street_groups[eid]["total_capacity"] += data["capacity"]
         else:
-            eid = data["edge"]
-            rate = (
-                street_stats[eid]["total_booked"] / street_stats[eid]["total_capacity"]
-            )
+            lot_spots.append(sid)
 
-        if rate > 0.90:
-            data["current_price"] = data["base_price"] * 2.0
-        elif rate > 0.70:
-            data["current_price"] = data["base_price"] * 1.5
-        else:
-            data["current_price"] = data["base_price"]
+    return street_groups, lot_spots
+
+
+def _price_from_rate(base_price, rate):
+    if rate > 0.90:
+        return base_price * 2.0
+    if rate > 0.70:
+        return base_price * 1.5
+    return base_price
+
+
+def _compute_pricing(all_spots, pricing_index):
+    """按街道维度聚合小容量路边车位，依据占用率阶梯式涨价。"""
+    street_groups, lot_spots = pricing_index
+
+    for sid in lot_spots:
+        data = all_spots[sid]
+        rate = data["booked"] / data["capacity"]
+        data["current_price"] = _price_from_rate(data["base_price"], rate)
+
+    for group in street_groups.values():
+        total_booked = sum(all_spots[sid]["booked"] for sid in group["spot_ids"])
+        rate = total_booked / group["total_capacity"]
+        for sid in group["spot_ids"]:
+            data = all_spots[sid]
+            data["current_price"] = _price_from_rate(data["base_price"], rate)
 
 
 # ---------------------------------------------------------------------------
@@ -148,13 +163,13 @@ def _settle(vid, stats, current_time, spot_id, cursor, conn):
     conn.commit()
 
 
-def _handle_departed(departed, all_spots, veh_stats, current_time):
+def _handle_departed(departed, all_spots, veh_stats, active_driving, current_time):
     """新生成车辆：分配车位 → 初始化状态。"""
+    booked_any = False
+
     for vid in departed:
         try:
             traci.vehicle.setShapeClass(vid, "passenger")
-            traci.vehicle.setSpeedFactor(vid, 0.4)
-            traci.vehicle.setImperfection(vid, 0.9)
             spawn_pos = traci.vehicle.getPosition(vid)
         except traci.exceptions.TraCIException:
             continue
@@ -166,24 +181,33 @@ def _handle_departed(departed, all_spots, veh_stats, current_time):
 
         try:
             _assign_vehicle(vid, spot_id, all_spots, veh_stats, current_time)
+            active_driving.add(vid)
+            booked_any = True
         except traci.exceptions.TraCIException:
             traci.simulation.writeMessage(
                 f"⚠️ [分配失败] 车辆 {vid} 路由至 {spot_id} 失败"
             )
 
+    return booked_any
 
-def _process_driving(veh_stats, sub_results, current_time, cursor, conn, gui):
+
+def _process_driving(
+    active_driving, veh_stats, sub_results, current_time, cursor, conn, gui
+):
     """行驶中车辆：指标更新、消失检测、泊车结算。"""
     completed = 0
     teleported = 0
 
-    for vid, stats in list(veh_stats.items()):
-        if stats["status"] != "driving":
+    for vid in list(active_driving):
+        stats = veh_stats.get(vid)
+        if stats is None or stats["status"] != "driving":
+            active_driving.discard(vid)
             continue
 
         # 车辆从路网中消失
         if vid not in sub_results:
             stats["status"] = "teleported"
+            active_driving.discard(vid)
             teleported += 1
             _settle(vid, stats, current_time, None, cursor, conn)
             continue
@@ -199,7 +223,12 @@ def _process_driving(veh_stats, sub_results, current_time, cursor, conn, gui):
             if traci.vehicle.isStoppedParking(vid):
                 target = stats["target_spot"]
                 stats["status"] = "parked"
+                active_driving.discard(vid)
                 _settle(vid, stats, current_time, target, cursor, conn)
+                try:
+                    traci.vehicle.unsubscribe(vid)
+                except traci.exceptions.TraCIException:
+                    pass
 
                 if gui and vid == gui.current_protagonist:
                     traci.simulation.writeMessage(
@@ -225,6 +254,7 @@ def run_smart_booking_with_pricing():
     cursor = conn.cursor()
 
     all_spots = _load_spots(cursor)
+    pricing_index = _build_pricing_index(all_spots)
 
     print("🚀 启动场景 B (动态定价 + 智能预订模式) - 最大限时 2 小时...")
     traci.start(sumoCmd)
@@ -238,9 +268,11 @@ def run_smart_booking_with_pricing():
         recorder = prepare_visual_session(SCENARIO_B_NAME, ENABLE_SCREEN_RECORDING)
 
         veh_stats = {}
+        active_driving = set()
         completed = 0
         teleported = 0
         current_time = 0
+        pricing_dirty = True
 
         while (
             traci.simulation.getMinExpectedNumber() > 0
@@ -248,22 +280,23 @@ def run_smart_booking_with_pricing():
         ):
             traci.simulationStep()
             current_time = traci.simulation.getTime()
-            active = traci.vehicle.getIDList()
 
-            gui.update(active, veh_stats, current_time)
-
-            # 每步更新浪涌定价
-            _compute_pricing(all_spots)
+            gui.update(active_driving, veh_stats, current_time)
 
             # 新车初始化
             departed = traci.simulation.getDepartedIDList()
             if departed:
-                _handle_departed(departed, all_spots, veh_stats, current_time)
+                if pricing_dirty:
+                    _compute_pricing(all_spots, pricing_index)
+                    pricing_dirty = False
+                pricing_dirty = _handle_departed(
+                    departed, all_spots, veh_stats, active_driving, current_time
+                ) or pricing_dirty
 
             # 行驶中车辆处理
             sub_results = traci.vehicle.getAllSubscriptionResults()
             c, t = _process_driving(
-                veh_stats, sub_results, current_time, cursor, conn, gui
+                active_driving, veh_stats, sub_results, current_time, cursor, conn, gui
             )
             completed += c
             teleported += t
@@ -284,11 +317,26 @@ def run_smart_booking_with_pricing():
 
             # 定期同步数据库
             if int(current_time) % DB_SYNC_INTERVAL == 0 and current_time > 0:
+                if pricing_dirty:
+                    _compute_pricing(all_spots, pricing_index)
+                    pricing_dirty = False
                 sync_spots_priced(cursor, conn, all_spots)
 
         # 收尾
         print("💾 同步最终车位预订与价格状态...")
+        if pricing_dirty:
+            _compute_pricing(all_spots, pricing_index)
         sync_spots_priced(cursor, conn, all_spots)
+        total_processed = completed + teleported
+        log_run_summary(
+            cursor,
+            conn,
+            SCENARIO_B_NAME,
+            current_time,
+            total_processed,
+            completed,
+            teleported,
+        )
         print(f"🏁 场景 B 结束。t={current_time:.0f}s 完成={completed} 丢失={teleported}")
     finally:
         if recorder is not None:

@@ -1,6 +1,7 @@
 import sys
 
 from .connection import get_db_connection
+from .db_ops import ensure_simulation_runs_table
 
 
 def reset_database(clear_logs=False, scenario_to_clear=None):
@@ -17,14 +18,17 @@ def reset_database(clear_logs=False, scenario_to_clear=None):
     try:
         conn = get_db_connection()  # type: ignore
         cursor = conn.cursor()
+        ensure_simulation_runs_table(cursor)
 
         # 根据配置决定是否清理并重置仿真记录表
         if clear_logs:
             print("🧹 正在彻底清空 cruising_Logs 仿真日志表...")
             cursor.execute("TRUNCATE TABLE cruising_Logs RESTART IDENTITY;")
+            cursor.execute("TRUNCATE TABLE Simulation_Runs RESTART IDENTITY;")
         elif scenario_to_clear:
             print(f"🧹 正在清空 cruising_Logs 中 {scenario_to_clear} 场景的日志...")
             cursor.execute("DELETE FROM Cruising_Logs WHERE scenario = %s;", (scenario_to_clear,))
+            cursor.execute("DELETE FROM Simulation_Runs WHERE scenario = %s;", (scenario_to_clear,))
         else:
             print("⏭️ 跳过清空日志，仅重置停车场表。")
 

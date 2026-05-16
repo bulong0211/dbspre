@@ -26,6 +26,8 @@
 | 시나리오 A: 기준 맹목 탐색 | `scripts/run_scenario_A_baseline.py` | 차량은 전체 주차 상태를 알지 못하고 가시 거리 안의 도로변 주차 공간만 탐색합니다. 공간이 없으면 계속 경로를 바꿉니다. |
 | 시나리오 B: 스마트 예약 및 동적 가격 | `scripts/run_scenario_B_smart.py` | 차량 출발 시 데이터베이스를 조회하고 거리와 현재 가격을 기준으로 사용 가능한 공간을 선택해 예약합니다. |
 
+현재 실험에서는 두 시나리오 모두 2시간 시뮬레이션 제한 안에 모든 차량의 주차를 완료하며, 주차율은 모두 100%입니다. 따라서 주차율은 사실로만 제시하고, 핵심 비교 지표는 모든 차량의 주차 완료에 필요한 전역 시뮬레이션 시간입니다.
+
 ---
 
 ## 2. 소프트웨어 실행 방법
@@ -128,7 +130,8 @@ uv run streamlit run scripts/run_dashboard.py
 7. `traci.simulationStep()` 메인 루프에 진입합니다.
 8. 출발 차량, 차량 상태, 주차 이벤트, 연료와 거리 지표를 처리합니다.
 9. `DB_SYNC_INTERVAL`마다 주차 상태를 PostgreSQL에 동기화합니다.
-10. 완료 또는 중단 시 녹화, TraCI, 플로터, 데이터베이스 자원을 닫습니다.
+10. `Simulation_Runs`에 시나리오 실행 요약을 기록합니다. 여기에는 완료 시간, 총 차량 수, 성공 수, 실패 수, 주차율이 포함됩니다.
+11. 완료 또는 중단 시 녹화, TraCI, 플로터, 데이터베이스 자원을 닫습니다.
 
 녹화 설정은 `scripts/core/config.py`에 있습니다.
 
@@ -145,7 +148,7 @@ RECORDING_PREROLL_SECONDS = 1.0
 
 ## 4. 데이터베이스 설계
 
-데이터베이스 구조는 `configs/schema.sql`에 정의되어 있으며, 하나의 enum 타입과 두 개의 주요 테이블을 포함합니다.
+데이터베이스 구조는 `configs/schema.sql`에 정의되어 있으며, 하나의 enum 타입과 세 개의 주요 테이블을 포함합니다.
 
 ### 4.1 Enum: `spot_category`
 
@@ -184,31 +187,64 @@ CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
 | `created_at` | `TIMESTAMP` | 기록 시각. |
 | `total_fuel_mg` | `FLOAT` | 탐색 중 누적 연료 소비량. |
 
+### 4.4 테이블: `Simulation_Runs`
+
+시나리오 실행별 전역 요약을 저장합니다. 대시보드는 이 테이블을 사용하여 모든 차량의 주차 완료에 필요한 시뮬레이션 시간을 비교합니다.
+
+| 필드 | 유형 | 설명 |
+| --- | --- | --- |
+| `run_id` | `SERIAL` | 기본 키. |
+| `scenario` | `VARCHAR(20)` | 시나리오 이름. |
+| `completion_time_sec` | `FLOAT` | 모든 처리 차량의 주차 완료에 필요한 전역 시뮬레이션 시간. |
+| `total_vehicles` | `INT` | 해당 실행에서 처리한 차량 수. |
+| `parked_vehicles` | `INT` | 성공적으로 주차한 차량 수. |
+| `failed_vehicles` | `INT` | 실패 또는 소실 차량 수. |
+| `parking_rate` | `FLOAT` | `parked_vehicles / total_vehicles`로 계산한 주차율. |
+| `created_at` | `TIMESTAMP` | 요약 기록 시각. |
+
 ---
 
 ## 5. 프로젝트 구조
 
 ```text
 dbspre/
+├── .gitignore
+├── .python-version
+├── pyproject.toml
+├── uv.lock
+├── README.md
+├── README.en.md
+├── README.ko.md
+├── README.ja.md
 ├── configs/
-│   ├── demo.sumocfg
-│   ├── demo.net.xml
-│   ├── demo.rou.xml
-│   ├── demo.trips.xml
-│   ├── gui-settings.xml
-│   ├── parking.add.xml
-│   └── schema.sql
+│   ├── cbd.poly.xml          # SUMO 폴리곤/영역 보조 파일
+│   ├── demo.sumocfg          # SUMO 기본 설정
+│   ├── demo.net.xml          # 도로망
+│   ├── demo.rou.xml          # 차량 경로
+│   ├── demo.trips.xml        # OD 수요
+│   ├── gui-settings.xml      # SUMO-GUI 표시 설정
+│   ├── parking.add.xml       # 주차 영역 정의
+│   └── schema.sql            # 데이터베이스 스키마와 초기 주차 데이터
 ├── scripts/
 │   ├── core/
-│   ├── generate_network.ps1
-│   ├── generate_parking.py
-│   ├── generate_traffic.py
-│   ├── init_db.py
-│   ├── prepare_simulation.py
-│   ├── run_dashboard.py
-│   ├── run_scenario_A_baseline.py
-│   └── run_scenario_B_smart.py
-└── pyproject.toml
+│   │   ├── __init__.py
+│   │   ├── config.py         # 전역 설정, SUMO 명령, 시뮬레이션 파라미터
+│   │   ├── connection.py     # PostgreSQL 연결
+│   │   ├── db_ops.py         # 로그, 실행 요약, 주차 상태 동기화
+│   │   ├── gui_tracker.py    # SUMO-GUI 카메라 추적
+│   │   ├── monitor.py        # matplotlib 실시간 모니터
+│   │   ├── parking_logic.py  # 시나리오 A 도로변 탐색 로직
+│   │   ├── recording.py      # ffmpeg 녹화 및 창 배치
+│   │   └── reset_db.py       # 데이터베이스 초기화 도구
+│   ├── generate_network.ps1  # 도로망 생성
+│   ├── generate_parking.py   # 주차 XML 및 SQL 생성
+│   ├── generate_traffic.py   # 교통 수요 생성
+│   ├── init_db.py            # 데이터베이스 초기화
+│   ├── prepare_simulation.py # 일괄 준비 스크립트
+│   ├── run_dashboard.py      # Streamlit 대시보드
+│   ├── run_scenario_A_baseline.py # 시나리오 A 메인 프로그램
+│   └── run_scenario_B_smart.py    # 시나리오 B 메인 프로그램
+└── recordings/               # 로컬 녹화 출력, 커밋하지 않음
 ```
 
 ---
@@ -248,7 +284,9 @@ dbspre/
 
 | 함수 | 기능 |
 | --- | --- |
+| `ensure_simulation_runs_table(cursor)` | `Simulation_Runs` 실행 요약 테이블이 존재하는지 보장합니다. |
 | `log_cruise()` | 차량 탐색 결과 한 건을 `Cruising_Logs`에 삽입합니다. |
+| `log_run_summary()` | 시나리오 단위 실행 요약을 `Simulation_Runs`에 삽입합니다. |
 | `sync_spots()` | 시나리오 A의 `occupied` 상태를 `Parking_Spots`에 일괄 반영합니다. |
 | `sync_spots_priced()` | 시나리오 B의 `occupied`와 `current_price`를 데이터베이스에 일괄 반영합니다. |
 
@@ -317,6 +355,8 @@ dbspre/
 | --- | --- |
 | `_load_spots()` | 데이터베이스에서 주차 용량, 가격, edge 정보를 읽습니다. |
 | `_compute_positions()` | TraCI 시작 후 주차 공간의 edge 좌표를 계산합니다. |
+| `_build_pricing_index()` | 반복 집계를 줄이기 위해 도로변 주차 그룹과 노외 주차장 인덱스를 미리 계산합니다. |
+| `_price_from_rate()` | 점유율에 따라 기본가, 1.5배, 2배 가격을 반환합니다. |
 | `_compute_pricing()` | 점유율 70% 초과 시 1.5배, 90% 초과 시 2배로 가격을 갱신합니다. |
 | `_find_best_spot()` | 거리와 가격을 이용해 최소 비용 주차 공간을 선택합니다. |
 | `_assign_vehicle()` | 목표 edge, 주차 정지 명령, 초기 차량 상태를 설정합니다. |
@@ -332,7 +372,7 @@ dbspre/
 | `scripts/init_db.py::init_database()` | `configs/schema.sql`을 읽고 실행합니다. |
 | `scripts/prepare_simulation.py::run_step()` | 단일 준비 단계를 실행하고 종료 코드를 확인합니다. |
 | `scripts/prepare_simulation.py::main()` | 도로망, 주차, 교통, 데이터베이스 준비를 순서대로 실행합니다. |
-| `scripts/run_dashboard.py::fetch_data()` | Streamlit 대시보드용 시나리오 지표를 `Cruising_Logs`에서 집계합니다. |
+| `scripts/run_dashboard.py::fetch_data()` | Streamlit 대시보드용 시나리오 지표를 `Cruising_Logs`와 `Simulation_Runs`에서 집계합니다. |
 
 ---
 
@@ -343,7 +383,11 @@ dbspre/
 - 성공 주차 수: `final_spot_id IS NOT NULL`
 - 실패 또는 소실 수: `final_spot_id IS NULL`
 - 평균 탐색 시간: `AVG(search_time_sec)`
+- 전체 주차 완료 시간: `Simulation_Runs.completion_time_sec`
+- 주차율: `Simulation_Runs.parking_rate`
 - 총 연료 소비: `SUM(total_fuel_mg)`
 - 시나리오 A 순항 거리: `SUM(cruising_distance_m)`
+
+현재 두 시나리오 모두 100% 주차율에 도달하므로 보고서와 대시보드는 성공률을 주요 비교 지표로 사용하지 않아야 합니다. 핵심 비교 대상은 모든 차량의 주차 완료에 필요한 전역 시뮬레이션 시간입니다.
 
 수집되거나 데이터베이스에 기록되지 않은 지표는 보고서, 논문, 대시보드에서 실측 결과로 다루면 안 됩니다.

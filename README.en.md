@@ -26,6 +26,8 @@ The project includes two comparable scenarios:
 | Scenario A: baseline blind search | `scripts/run_scenario_A_baseline.py` | Vehicles do not know the global parking state. They scan only visible roadside spots and keep rerouting when no spot is found. |
 | Scenario B: smart reservation and dynamic pricing | `scripts/run_scenario_B_smart.py` | Vehicles query the database at departure, choose an available spot by distance and current price, reserve it, and navigate to it. |
 
+In the current experiments, both scenarios complete all vehicle parking within the 2-hour simulation limit, so both parking rates are 100%. The parking rate is therefore reported as a fact, while the primary comparison metric is the global simulation time required to complete parking for all vehicles.
+
 ---
 
 ## 2. Running the Software
@@ -128,7 +130,8 @@ Scenario scripts follow this flow:
 7. Enter the `traci.simulationStep()` main loop.
 8. Process departures, vehicle state, parking events, fuel, and distance metrics.
 9. Sync parking state to PostgreSQL every `DB_SYNC_INTERVAL`.
-10. On completion or interruption, close recording, TraCI, plotting, and database resources.
+10. Write a scenario-level summary to `Simulation_Runs`, including completion time, total vehicles, parked vehicles, failed vehicles, and parking rate.
+11. On completion or interruption, close recording, TraCI, plotting, and database resources.
 
 Recording is configured in `scripts/core/config.py`:
 
@@ -145,7 +148,7 @@ The `recordings/` directory is ignored by git.
 
 ## 4. Database Design
 
-The database schema is defined in `configs/schema.sql`. It contains one enum type and two main tables.
+The database schema is defined in `configs/schema.sql`. It contains one enum type and three main tables.
 
 ### 4.1 Enum: `spot_category`
 
@@ -184,31 +187,64 @@ Stores per-vehicle parking search results.
 | `created_at` | `TIMESTAMP` | Insert timestamp. |
 | `total_fuel_mg` | `FLOAT` | Accumulated fuel consumption during search. |
 
+### 4.4 Table: `Simulation_Runs`
+
+Stores one global summary per scenario run. The dashboard uses this table to compare the simulation time required to complete parking for all vehicles.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `run_id` | `SERIAL` | Primary key. |
+| `scenario` | `VARCHAR(20)` | Scenario name. |
+| `completion_time_sec` | `FLOAT` | Global simulation time required to complete all processed vehicle parking. |
+| `total_vehicles` | `INT` | Number of vehicles processed in the run. |
+| `parked_vehicles` | `INT` | Number of successfully parked vehicles. |
+| `failed_vehicles` | `INT` | Number of failed or missing vehicles. |
+| `parking_rate` | `FLOAT` | Parking rate, equal to `parked_vehicles / total_vehicles`. |
+| `created_at` | `TIMESTAMP` | Summary insert timestamp. |
+
 ---
 
 ## 5. Project Layout
 
 ```text
 dbspre/
+├── .gitignore
+├── .python-version
+├── pyproject.toml
+├── uv.lock
+├── README.md
+├── README.en.md
+├── README.ko.md
+├── README.ja.md
 ├── configs/
-│   ├── demo.sumocfg
-│   ├── demo.net.xml
-│   ├── demo.rou.xml
-│   ├── demo.trips.xml
-│   ├── gui-settings.xml
-│   ├── parking.add.xml
-│   └── schema.sql
+│   ├── cbd.poly.xml          # SUMO polygon / area helper file
+│   ├── demo.sumocfg          # Main SUMO configuration
+│   ├── demo.net.xml          # Road network
+│   ├── demo.rou.xml          # Vehicle routes
+│   ├── demo.trips.xml        # OD demand
+│   ├── gui-settings.xml      # SUMO-GUI view settings
+│   ├── parking.add.xml       # Parking area definitions
+│   └── schema.sql            # Database schema and initial parking data
 ├── scripts/
 │   ├── core/
-│   ├── generate_network.ps1
-│   ├── generate_parking.py
-│   ├── generate_traffic.py
-│   ├── init_db.py
-│   ├── prepare_simulation.py
-│   ├── run_dashboard.py
-│   ├── run_scenario_A_baseline.py
-│   └── run_scenario_B_smart.py
-└── pyproject.toml
+│   │   ├── __init__.py
+│   │   ├── config.py         # Global config, SUMO command, simulation parameters
+│   │   ├── connection.py     # PostgreSQL connection
+│   │   ├── db_ops.py         # Logs, run summaries, and spot synchronization
+│   │   ├── gui_tracker.py    # SUMO-GUI camera tracking
+│   │   ├── monitor.py        # matplotlib real-time monitor
+│   │   ├── parking_logic.py  # Scenario A curbside search logic
+│   │   ├── recording.py      # ffmpeg recording and window placement
+│   │   └── reset_db.py       # Database reset helper
+│   ├── generate_network.ps1  # Network generation
+│   ├── generate_parking.py   # Parking XML and SQL generation
+│   ├── generate_traffic.py   # Traffic demand generation
+│   ├── init_db.py            # Database initialization
+│   ├── prepare_simulation.py # One-command preparation
+│   ├── run_dashboard.py      # Streamlit dashboard
+│   ├── run_scenario_A_baseline.py # Scenario A main program
+│   └── run_scenario_B_smart.py    # Scenario B main program
+└── recordings/               # Local recording output; should not be committed
 ```
 
 ---
@@ -248,7 +284,9 @@ Main parameters are in `scripts/core/config.py`.
 
 | Function | Purpose |
 | --- | --- |
+| `ensure_simulation_runs_table(cursor)` | Ensure the `Simulation_Runs` summary table exists. |
 | `log_cruise()` | Insert one vehicle search result into `Cruising_Logs`. |
+| `log_run_summary()` | Insert one scenario-level run summary into `Simulation_Runs`. |
 | `sync_spots()` | Batch-sync Scenario A `occupied` state to `Parking_Spots`. |
 | `sync_spots_priced()` | Batch-sync Scenario B `occupied` and `current_price` to the database. |
 
@@ -317,6 +355,8 @@ Main parameters are in `scripts/core/config.py`.
 | --- | --- |
 | `_load_spots()` | Load spot capacity, price, and edge data from the database. |
 | `_compute_positions()` | Compute edge coordinates for spots after TraCI starts. |
+| `_build_pricing_index()` | Precompute curbside street groups and off-street lot indexes to avoid repeated aggregation. |
+| `_price_from_rate()` | Return base, 1.5x, or 2x price from an occupancy rate. |
 | `_compute_pricing()` | Update prices by occupancy: 1.5x above 70%, 2x above 90%. |
 | `_find_best_spot()` | Select the minimum-cost spot using distance and price. |
 | `_assign_vehicle()` | Set the route target, parking stop command, and initial vehicle state. |
@@ -332,7 +372,7 @@ Main parameters are in `scripts/core/config.py`.
 | `scripts/init_db.py::init_database()` | Read and execute `configs/schema.sql`. |
 | `scripts/prepare_simulation.py::run_step()` | Run one preparation step and check its exit code. |
 | `scripts/prepare_simulation.py::main()` | Chain network, parking, traffic, and database preparation. |
-| `scripts/run_dashboard.py::fetch_data()` | Aggregate scenario metrics from `Cruising_Logs` for Streamlit. |
+| `scripts/run_dashboard.py::fetch_data()` | Aggregate scenario metrics from `Cruising_Logs` and `Simulation_Runs` for Streamlit. |
 
 ---
 
@@ -343,7 +383,11 @@ The project should report only metrics that are actually recorded in the databas
 - Successful parking count: `final_spot_id IS NOT NULL`
 - Failed or missing count: `final_spot_id IS NULL`
 - Average search time: `AVG(search_time_sec)`
+- Full parking completion time: `Simulation_Runs.completion_time_sec`
+- Parking rate: `Simulation_Runs.parking_rate`
 - Total fuel: `SUM(total_fuel_mg)`
 - Scenario A cruising distance: `SUM(cruising_distance_m)`
+
+Because both scenarios currently reach a 100% parking rate, reports and dashboards should not use success rate as the main comparison metric. The primary comparison is the global simulation time required to complete parking for all vehicles.
 
 If a metric is not collected or written to the database, it should not be treated as a measured result in reports, papers, or dashboards.

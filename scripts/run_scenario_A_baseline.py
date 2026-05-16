@@ -20,7 +20,7 @@ from core.config import (
     sumoCmd,
 )
 from core.connection import get_db_connection
-from core.db_ops import log_cruise, sync_spots
+from core.db_ops import log_cruise, log_run_summary, sync_spots
 from core.gui_tracker import GUITracker
 from core.monitor import MultiprocessingPlotter
 from core.parking_logic import (
@@ -466,6 +466,16 @@ def run_baseline():
                 _settle(vid, stats, current_time, curr_dist, None, cursor, conn)
             conn.commit()
 
+        total_processed = completed + teleported
+        log_run_summary(
+            cursor,
+            conn,
+            SCENARIO_A_NAME,
+            current_time,
+            total_processed,
+            completed,
+            teleported,
+        )
         print(f"🏁 场景 A 结束。t={current_time:.0f}s 完成={completed} 丢失={teleported}")
     finally:
         if recorder is not None:
