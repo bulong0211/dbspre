@@ -21,6 +21,12 @@ from core.config import (
 )
 from core.connection import get_db_connection
 from core.db_ops import log_cruise, log_run_summary, sync_spots
+from core.emissions import (
+    EMISSION_SUB_VARS,
+    accumulate_environment,
+    environment_log_values,
+    init_environment_stats,
+)
 from core.gui_tracker import GUITracker
 from core.monitor import MultiprocessingPlotter
 from core.parking_logic import (
@@ -118,15 +124,21 @@ def _spots_by_edge(all_spots):
 def _settle(vid, stats, current_time, current_dist, spot_id, cursor, conn):
     search_time = current_time - stats["spawn_time"]
     stats["search_time"] = search_time
-    stats["total_fuel"] = stats.get("total_fuel", 0.0)
+    env = environment_log_values(stats)
     log_cruise(
         cursor,
         vid,
         SCENARIO_A_NAME,
         search_time,
         current_dist,
-        stats["total_fuel"],
+        env["total_fuel"],
         spot_id,
+        env["total_co2"],
+        env["total_co"],
+        env["total_hc"],
+        env["total_nox"],
+        env["total_pmx"],
+        env["avg_noise"],
     )
     conn.commit()
 
@@ -135,39 +147,47 @@ def _settle_lost(vid, stats, current_time, cursor, conn):
     stats["status"] = "teleported"
     search_time = current_time - stats["spawn_time"]
     stats["search_time"] = search_time
+    env = environment_log_values(stats)
     log_cruise(
         cursor,
         vid,
         SCENARIO_A_NAME,
         search_time,
         stats.get("last_dist", 0.0),
-        stats.get("total_fuel", 0.0),
+        env["total_fuel"],
         None,
+        env["total_co2"],
+        env["total_co"],
+        env["total_hc"],
+        env["total_nox"],
+        env["total_pmx"],
+        env["avg_noise"],
     )
     conn.commit()
 
 
 def _init_stats(current_time):
-    return {
+    stats = {
         "status": "cruising",
         "target_spot": None,
         "pending_spot": None,
         "pending_spot_edge": None,
         "spawn_time": current_time,
         "search_time": 0.0,
-        "total_fuel": 0.0,
         "last_dist": 0.0,
         "speed": 0.0,
     }
+    stats.update(init_environment_stats())
+    return stats
 
 
 SUB_VARS = [
-    tc.VAR_FUELCONSUMPTION,
     tc.VAR_DISTANCE,
     tc.VAR_ROAD_ID,
     tc.VAR_SPEED,
     tc.VAR_POSITION,
     tc.VAR_LANEPOSITION,
+    *EMISSION_SUB_VARS,
 ]
 
 
@@ -194,7 +214,7 @@ def _process_vehicle(
     current_lanepos = data.get(tc.VAR_LANEPOSITION, 0.0)
 
     stats["last_dist"] = current_dist
-    stats["total_fuel"] = stats.get("total_fuel", 0.0) + data[tc.VAR_FUELCONSUMPTION]
+    accumulate_environment(stats, data)
     stats["speed"] = data[tc.VAR_SPEED]
 
     # 已成功泊入

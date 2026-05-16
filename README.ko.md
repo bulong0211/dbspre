@@ -186,6 +186,12 @@ CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
 | `final_spot_id` | `VARCHAR(50)` | 최종 주차 공간. 실패 또는 차량 소실 시 `NULL`. |
 | `created_at` | `TIMESTAMP` | 기록 시각. |
 | `total_fuel_mg` | `FLOAT` | 탐색 중 누적 연료 소비량. |
+| `total_co2_mg` | `FLOAT` | 탐색/주행 중 누적 이산화탄소 배출량. |
+| `total_co_mg` | `FLOAT` | 누적 일산화탄소 배출량. |
+| `total_hc_mg` | `FLOAT` | 누적 탄화수소 배출량. |
+| `total_nox_mg` | `FLOAT` | 누적 질소산화물 배출량. |
+| `total_pmx_mg` | `FLOAT` | 누적 입자상 물질 배출량. |
+| `avg_noise_db` | `FLOAT` | 주행 중 평균 차량 소음. |
 
 ### 4.4 테이블: `Simulation_Runs`
 
@@ -231,6 +237,7 @@ dbspre/
 │   │   ├── config.py         # 전역 설정, SUMO 명령, 시뮬레이션 파라미터
 │   │   ├── connection.py     # PostgreSQL 연결
 │   │   ├── db_ops.py         # 로그, 실행 요약, 주차 상태 동기화
+│   │   ├── emissions.py      # 차량 배출가스, 오염물질, 소음 누적
 │   │   ├── gui_tracker.py    # SUMO-GUI 카메라 추적
 │   │   ├── monitor.py        # matplotlib 실시간 모니터
 │   │   ├── parking_logic.py  # 시나리오 A 도로변 탐색 로직
@@ -285,12 +292,22 @@ dbspre/
 | 함수 | 기능 |
 | --- | --- |
 | `ensure_simulation_runs_table(cursor)` | `Simulation_Runs` 실행 요약 테이블이 존재하는지 보장합니다. |
+| `ensure_cruising_logs_environment_columns(cursor)` | 기존 `Cruising_Logs` 테이블에 환경 지표 열을 보완합니다. |
 | `log_cruise()` | 차량 탐색 결과 한 건을 `Cruising_Logs`에 삽입합니다. |
 | `log_run_summary()` | 시나리오 단위 실행 요약을 `Simulation_Runs`에 삽입합니다. |
 | `sync_spots()` | 시나리오 A의 `occupied` 상태를 `Parking_Spots`에 일괄 반영합니다. |
 | `sync_spots_priced()` | 시나리오 B의 `occupied`와 `current_price`를 데이터베이스에 일괄 반영합니다. |
 
-### 7.3 `scripts/core/parking_logic.py`
+### 7.3 `scripts/core/emissions.py`
+
+| 함수 / 상수 | 기능 |
+| --- | --- |
+| `EMISSION_SUB_VARS` | 연료, CO2, CO, HC, NOx, PMx, 소음에 대한 TraCI 차량 구독 변수입니다. |
+| `init_environment_stats()` | 차량별 환경 지표 누적 필드를 초기화합니다. |
+| `accumulate_environment(stats, data)` | 단일 단계 TraCI 배출 데이터를 차량 상태에 누적합니다. |
+| `environment_log_values(stats)` | `Cruising_Logs`에 기록할 환경 지표 값을 생성합니다. |
+
+### 7.4 `scripts/core/parking_logic.py`
 
 | 함수 | 기능 |
 | --- | --- |
@@ -300,7 +317,7 @@ dbspre/
 | `check_pending()` | 차량이 pending 공간의 edge에 도착하면 실제 주차를 시도합니다. |
 | `handle_occupied()` | 무효, 만차, 지나친 목표 공간을 취소하고 차량을 재라우팅합니다. |
 
-### 7.4 `scripts/core/gui_tracker.py`
+### 7.5 `scripts/core/gui_tracker.py`
 
 | 클래스 / 메서드 | 기능 |
 | --- | --- |
@@ -309,7 +326,7 @@ dbspre/
 | `current_protagonist` | 현재 추적 중인 차량 ID를 반환합니다. |
 | `on_vehicle_parked(vid)` | 추적 차량이 주차하면 추적 대상을 해제합니다. |
 
-### 7.5 `scripts/core/monitor.py`
+### 7.6 `scripts/core/monitor.py`
 
 | 클래스 / 함수 | 기능 |
 | --- | --- |
@@ -319,7 +336,7 @@ dbspre/
 | `_render_full()` | 시나리오 A용 6개 패널 모니터입니다. |
 | `_render_compact()` | 시나리오 B용 4개 패널 모니터입니다. |
 
-### 7.6 `scripts/core/recording.py`
+### 7.7 `scripts/core/recording.py`
 
 | 클래스 / 함수 | 기능 |
 | --- | --- |
@@ -328,13 +345,13 @@ dbspre/
 | `ScreenRecorder.stop()` | ffmpeg를 정상 종료해 중단된 실행에서도 영상 생성을 최대한 보장합니다. |
 | `prepare_visual_session()` | 창 배치, 녹화 시작, 프리롤 대기를 수행합니다. |
 
-### 7.7 `scripts/core/reset_db.py`
+### 7.8 `scripts/core/reset_db.py`
 
 | 함수 | 기능 |
 | --- | --- |
 | `reset_database(clear_logs=False, scenario_to_clear=None)` | 주차 점유와 가격을 초기화하고 전체 또는 특정 시나리오 로그를 선택적으로 삭제합니다. |
 
-### 7.8 `scripts/run_scenario_A_baseline.py`
+### 7.9 `scripts/run_scenario_A_baseline.py`
 
 | 함수 | 기능 |
 | --- | --- |
@@ -349,7 +366,7 @@ dbspre/
 | `_process_vehicle()` | 시나리오 A 단일 차량의 지표, 탐색, 주차, 타임아웃, 재라우팅을 처리합니다. |
 | `run_baseline()` | 시나리오 A 메인 진입점입니다. |
 
-### 7.9 `scripts/run_scenario_B_smart.py`
+### 7.10 `scripts/run_scenario_B_smart.py`
 
 | 함수 | 기능 |
 | --- | --- |
@@ -365,7 +382,7 @@ dbspre/
 | `_process_driving()` | 주행 차량을 갱신하고 주차 성공 또는 차량 소실을 감지합니다. |
 | `run_smart_booking_with_pricing()` | 시나리오 B 메인 진입점입니다. |
 
-### 7.10 기타 스크립트
+### 7.11 기타 스크립트
 
 | 스크립트 / 함수 | 기능 |
 | --- | --- |
@@ -386,6 +403,9 @@ dbspre/
 - 전체 주차 완료 시간: `Simulation_Runs.completion_time_sec`
 - 주차율: `Simulation_Runs.parking_rate`
 - 총 연료 소비: `SUM(total_fuel_mg)`
+- 총 CO2: `SUM(total_co2_mg)`
+- 유해 가스 및 입자상 물질: `SUM(total_co_mg)`, `SUM(total_hc_mg)`, `SUM(total_nox_mg)`, `SUM(total_pmx_mg)`
+- 평균 소음: `AVG(avg_noise_db)`
 - 시나리오 A 순항 거리: `SUM(cruising_distance_m)`
 
 현재 두 시나리오 모두 100% 주차율에 도달하므로 보고서와 대시보드는 성공률을 주요 비교 지표로 사용하지 않아야 합니다. 핵심 비교 대상은 모든 차량의 주차 완료에 필요한 전역 시뮬레이션 시간입니다.

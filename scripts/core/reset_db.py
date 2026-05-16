@@ -1,7 +1,10 @@
 import sys
 
 from .connection import get_db_connection
-from .db_ops import ensure_simulation_runs_table
+from .db_ops import (
+    ensure_cruising_logs_environment_columns,
+    ensure_simulation_runs_table,
+)
 
 
 def reset_database(clear_logs=False, scenario_to_clear=None):
@@ -19,6 +22,7 @@ def reset_database(clear_logs=False, scenario_to_clear=None):
         conn = get_db_connection()  # type: ignore
         cursor = conn.cursor()
         ensure_simulation_runs_table(cursor)
+        ensure_cruising_logs_environment_columns(cursor)
 
         # 根据配置决定是否清理并重置仿真记录表
         if clear_logs:

@@ -186,6 +186,12 @@ CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
 | `final_spot_id` | `VARCHAR(50)` | 最终停车位；失败或消失时为 `NULL`。 |
 | `created_at` | `TIMESTAMP` | 写入时间。 |
 | `total_fuel_mg` | `FLOAT` | 寻位过程累计燃油消耗。 |
+| `total_co2_mg` | `FLOAT` | 寻位/行驶过程累计二氧化碳排放。 |
+| `total_co_mg` | `FLOAT` | 累计一氧化碳排放。 |
+| `total_hc_mg` | `FLOAT` | 累计碳氢化合物排放。 |
+| `total_nox_mg` | `FLOAT` | 累计氮氧化物排放。 |
+| `total_pmx_mg` | `FLOAT` | 累计颗粒物排放。 |
+| `avg_noise_db` | `FLOAT` | 车辆行驶期间平均噪声。 |
 
 ### 4.4 表：`Simulation_Runs`
 
@@ -231,6 +237,7 @@ dbspre/
 │   │   ├── config.py         # 全局配置、SUMO 启动命令与仿真参数
 │   │   ├── connection.py     # PostgreSQL 连接
 │   │   ├── db_ops.py         # 日志、运行摘要与车位同步
+│   │   ├── emissions.py      # 车辆尾气、污染物、噪声指标累计
 │   │   ├── gui_tracker.py    # SUMO-GUI 镜头跟随
 │   │   ├── monitor.py        # matplotlib 实时监控
 │   │   ├── parking_logic.py  # 场景 A 沿街寻位逻辑
@@ -285,12 +292,22 @@ dbspre/
 | 函数 | 功能 |
 | --- | --- |
 | `ensure_simulation_runs_table(cursor)` | 确保 `Simulation_Runs` 运行摘要表存在。 |
+| `ensure_cruising_logs_environment_columns(cursor)` | 为已有 `Cruising_Logs` 表补齐环境指标列。 |
 | `log_cruise(cursor, vid, scenario, search_time, cruise_dist, total_fuel, spot_id)` | 向 `Cruising_Logs` 插入车辆寻位结果。 |
 | `log_run_summary(...)` | 向 `Simulation_Runs` 插入场景级运行摘要。 |
 | `sync_spots(cursor, conn, spots_data)` | 将场景 A 的 `occupied` 状态批量同步到 `Parking_Spots`。 |
 | `sync_spots_priced(cursor, conn, spots_data)` | 将场景 B 的 `occupied` 和 `current_price` 批量同步到数据库。 |
 
-### 7.3 `scripts/core/parking_logic.py`
+### 7.3 `scripts/core/emissions.py`
+
+| 函数/常量 | 功能 |
+| --- | --- |
+| `EMISSION_SUB_VARS` | TraCI 车辆订阅变量列表，包含燃油、CO2、CO、HC、NOx、PMx、噪声。 |
+| `init_environment_stats()` | 初始化单车环境指标累计字段。 |
+| `accumulate_environment(stats, data)` | 将单步 TraCI 排放数据累计到车辆状态中。 |
+| `environment_log_values(stats)` | 生成写入 `Cruising_Logs` 的环境指标值。 |
+
+### 7.4 `scripts/core/parking_logic.py`
 
 | 函数 | 功能 |
 | --- | --- |
@@ -300,7 +317,7 @@ dbspre/
 | `check_pending()` | 车辆到达 pending 车位所在道路后尝试真正停车。 |
 | `handle_occupied()` | 目标车位失效、已满或车辆驶离目标道路时取消目标并重新寻路。 |
 
-### 7.4 `scripts/core/gui_tracker.py`
+### 7.5 `scripts/core/gui_tracker.py`
 
 | 类/方法 | 功能 |
 | --- | --- |
@@ -309,7 +326,7 @@ dbspre/
 | `current_protagonist` | 返回当前被跟随车辆 ID。 |
 | `on_vehicle_parked(vid)` | 被跟随车辆停车后释放镜头目标。 |
 
-### 7.5 `scripts/core/monitor.py`
+### 7.6 `scripts/core/monitor.py`
 
 | 类/函数 | 功能 |
 | --- | --- |
@@ -319,7 +336,7 @@ dbspre/
 | `_render_full()` | 场景 A 的 6 图监控面板。 |
 | `_render_compact()` | 场景 B 的 4 图监控面板。 |
 
-### 7.6 `scripts/core/recording.py`
+### 7.7 `scripts/core/recording.py`
 
 | 类/函数 | 功能 |
 | --- | --- |
@@ -328,13 +345,13 @@ dbspre/
 | `ScreenRecorder.stop()` | 优雅停止 ffmpeg，确保中途退出时尽量产出可用视频。 |
 | `prepare_visual_session()` | 执行窗口摆放、启动录制和预热等待。 |
 
-### 7.7 `scripts/core/reset_db.py`
+### 7.8 `scripts/core/reset_db.py`
 
 | 函数 | 功能 |
 | --- | --- |
 | `reset_database(clear_logs=False, scenario_to_clear=None)` | 重置车位占用和价格；可选择清空全部日志或指定场景日志。 |
 
-### 7.8 `scripts/run_scenario_A_baseline.py`
+### 7.9 `scripts/run_scenario_A_baseline.py`
 
 | 函数 | 功能 |
 | --- | --- |
@@ -349,7 +366,7 @@ dbspre/
 | `_process_vehicle()` | 场景 A 单车步进逻辑：累计指标、扫描车位、停车、超时和重路由。 |
 | `run_baseline()` | 场景 A 主入口。 |
 
-### 7.9 `scripts/run_scenario_B_smart.py`
+### 7.10 `scripts/run_scenario_B_smart.py`
 
 | 函数 | 功能 |
 | --- | --- |
@@ -365,7 +382,7 @@ dbspre/
 | `_process_driving()` | 更新行驶车辆指标，检测停车成功或车辆消失。 |
 | `run_smart_booking_with_pricing()` | 场景 B 主入口。 |
 
-### 7.10 其他脚本
+### 7.11 其他脚本
 
 | 脚本/函数 | 功能 |
 | --- | --- |
@@ -386,6 +403,9 @@ dbspre/
 - 完成全部停放时间：`Simulation_Runs.completion_time_sec`
 - 停放率：`Simulation_Runs.parking_rate`
 - 总油耗：`SUM(total_fuel_mg)`
+- 总 CO2：`SUM(total_co2_mg)`
+- 有害气体与颗粒物：`SUM(total_co_mg)`、`SUM(total_hc_mg)`、`SUM(total_nox_mg)`、`SUM(total_pmx_mg)`
+- 平均噪声：`AVG(avg_noise_db)`
 - 场景 A 巡航距离：`SUM(cruising_distance_m)`
 
 当前实验结果中两个场景均达到 100% 停放率，因此文档、看板和报告不再将成功率作为主要比较指标；核心比较对象是完成全部车辆停放所需的全局仿真时间。

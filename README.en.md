@@ -186,6 +186,12 @@ Stores per-vehicle parking search results.
 | `final_spot_id` | `VARCHAR(50)` | Final spot ID; `NULL` for failed or missing vehicles. |
 | `created_at` | `TIMESTAMP` | Insert timestamp. |
 | `total_fuel_mg` | `FLOAT` | Accumulated fuel consumption during search. |
+| `total_co2_mg` | `FLOAT` | Accumulated carbon dioxide emissions during search/driving. |
+| `total_co_mg` | `FLOAT` | Accumulated carbon monoxide emissions. |
+| `total_hc_mg` | `FLOAT` | Accumulated hydrocarbon emissions. |
+| `total_nox_mg` | `FLOAT` | Accumulated nitrogen oxides emissions. |
+| `total_pmx_mg` | `FLOAT` | Accumulated particulate matter emissions. |
+| `avg_noise_db` | `FLOAT` | Average vehicle noise while driving. |
 
 ### 4.4 Table: `Simulation_Runs`
 
@@ -231,6 +237,7 @@ dbspre/
 │   │   ├── config.py         # Global config, SUMO command, simulation parameters
 │   │   ├── connection.py     # PostgreSQL connection
 │   │   ├── db_ops.py         # Logs, run summaries, and spot synchronization
+│   │   ├── emissions.py      # Vehicle exhaust, pollutant, and noise accumulation
 │   │   ├── gui_tracker.py    # SUMO-GUI camera tracking
 │   │   ├── monitor.py        # matplotlib real-time monitor
 │   │   ├── parking_logic.py  # Scenario A curbside search logic
@@ -285,12 +292,22 @@ Main parameters are in `scripts/core/config.py`.
 | Function | Purpose |
 | --- | --- |
 | `ensure_simulation_runs_table(cursor)` | Ensure the `Simulation_Runs` summary table exists. |
+| `ensure_cruising_logs_environment_columns(cursor)` | Add missing environmental columns to an existing `Cruising_Logs` table. |
 | `log_cruise()` | Insert one vehicle search result into `Cruising_Logs`. |
 | `log_run_summary()` | Insert one scenario-level run summary into `Simulation_Runs`. |
 | `sync_spots()` | Batch-sync Scenario A `occupied` state to `Parking_Spots`. |
 | `sync_spots_priced()` | Batch-sync Scenario B `occupied` and `current_price` to the database. |
 
-### 7.3 `scripts/core/parking_logic.py`
+### 7.3 `scripts/core/emissions.py`
+
+| Function / constant | Purpose |
+| --- | --- |
+| `EMISSION_SUB_VARS` | TraCI vehicle subscription variables for fuel, CO2, CO, HC, NOx, PMx, and noise. |
+| `init_environment_stats()` | Initialize per-vehicle environmental accumulation fields. |
+| `accumulate_environment(stats, data)` | Accumulate one-step TraCI emission data into vehicle state. |
+| `environment_log_values(stats)` | Produce environmental values for `Cruising_Logs`. |
+
+### 7.4 `scripts/core/parking_logic.py`
 
 | Function | Purpose |
 | --- | --- |
@@ -300,7 +317,7 @@ Main parameters are in `scripts/core/config.py`.
 | `check_pending()` | Try to park when a vehicle reaches the edge of its pending spot. |
 | `handle_occupied()` | Cancel invalid, full, or missed target spots and reroute the vehicle. |
 
-### 7.4 `scripts/core/gui_tracker.py`
+### 7.5 `scripts/core/gui_tracker.py`
 
 | Class / method | Purpose |
 | --- | --- |
@@ -309,7 +326,7 @@ Main parameters are in `scripts/core/config.py`.
 | `current_protagonist` | Return the currently tracked vehicle ID. |
 | `on_vehicle_parked(vid)` | Release the tracked vehicle after it parks. |
 
-### 7.5 `scripts/core/monitor.py`
+### 7.6 `scripts/core/monitor.py`
 
 | Class / function | Purpose |
 | --- | --- |
@@ -319,7 +336,7 @@ Main parameters are in `scripts/core/config.py`.
 | `_render_full()` | Six-panel monitor for Scenario A. |
 | `_render_compact()` | Four-panel monitor for Scenario B. |
 
-### 7.6 `scripts/core/recording.py`
+### 7.7 `scripts/core/recording.py`
 
 | Class / function | Purpose |
 | --- | --- |
@@ -328,13 +345,13 @@ Main parameters are in `scripts/core/config.py`.
 | `ScreenRecorder.stop()` | Stop ffmpeg gracefully so an interrupted run can still produce a video file. |
 | `prepare_visual_session()` | Arrange windows, start recording, and wait for preroll. |
 
-### 7.7 `scripts/core/reset_db.py`
+### 7.8 `scripts/core/reset_db.py`
 
 | Function | Purpose |
 | --- | --- |
 | `reset_database(clear_logs=False, scenario_to_clear=None)` | Reset parking occupancy and prices; optionally clear all logs or one scenario's logs. |
 
-### 7.8 `scripts/run_scenario_A_baseline.py`
+### 7.9 `scripts/run_scenario_A_baseline.py`
 
 | Function | Purpose |
 | --- | --- |
@@ -349,7 +366,7 @@ Main parameters are in `scripts/core/config.py`.
 | `_process_vehicle()` | Process one Scenario A vehicle step: metrics, scan, parking, timeout, and reroute. |
 | `run_baseline()` | Main entry for Scenario A. |
 
-### 7.9 `scripts/run_scenario_B_smart.py`
+### 7.10 `scripts/run_scenario_B_smart.py`
 
 | Function | Purpose |
 | --- | --- |
@@ -365,7 +382,7 @@ Main parameters are in `scripts/core/config.py`.
 | `_process_driving()` | Update active vehicles and detect parking success or disappearance. |
 | `run_smart_booking_with_pricing()` | Main entry for Scenario B. |
 
-### 7.10 Other Scripts
+### 7.11 Other Scripts
 
 | Script / function | Purpose |
 | --- | --- |
@@ -386,6 +403,9 @@ The project should report only metrics that are actually recorded in the databas
 - Full parking completion time: `Simulation_Runs.completion_time_sec`
 - Parking rate: `Simulation_Runs.parking_rate`
 - Total fuel: `SUM(total_fuel_mg)`
+- Total CO2: `SUM(total_co2_mg)`
+- Harmful gases and particles: `SUM(total_co_mg)`, `SUM(total_hc_mg)`, `SUM(total_nox_mg)`, `SUM(total_pmx_mg)`
+- Average noise: `AVG(avg_noise_db)`
 - Scenario A cruising distance: `SUM(cruising_distance_m)`
 
 Because both scenarios currently reach a 100% parking rate, reports and dashboards should not use success rate as the main comparison metric. The primary comparison is the global simulation time required to complete parking for all vehicles.

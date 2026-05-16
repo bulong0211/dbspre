@@ -186,6 +186,12 @@ CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
 | `final_spot_id` | `VARCHAR(50)` | 最終駐車スペース。失敗または車両消失時は `NULL`。 |
 | `created_at` | `TIMESTAMP` | 記録時刻。 |
 | `total_fuel_mg` | `FLOAT` | 探索中の累積燃料消費。 |
+| `total_co2_mg` | `FLOAT` | 探索/走行中の累積二酸化炭素排出量。 |
+| `total_co_mg` | `FLOAT` | 累積一酸化炭素排出量。 |
+| `total_hc_mg` | `FLOAT` | 累積炭化水素排出量。 |
+| `total_nox_mg` | `FLOAT` | 累積窒素酸化物排出量。 |
+| `total_pmx_mg` | `FLOAT` | 累積粒子状物質排出量。 |
+| `avg_noise_db` | `FLOAT` | 走行中の平均車両騒音。 |
 
 ### 4.4 テーブル: `Simulation_Runs`
 
@@ -231,6 +237,7 @@ dbspre/
 │   │   ├── config.py         # グローバル設定、SUMO コマンド、シミュレーションパラメータ
 │   │   ├── connection.py     # PostgreSQL 接続
 │   │   ├── db_ops.py         # ログ、実行サマリー、駐車状態同期
+│   │   ├── emissions.py      # 車両排出ガス、汚染物質、騒音の累積
 │   │   ├── gui_tracker.py    # SUMO-GUI カメラ追跡
 │   │   ├── monitor.py        # matplotlib リアルタイムモニター
 │   │   ├── parking_logic.py  # シナリオ A 路上探索ロジック
@@ -285,12 +292,22 @@ dbspre/
 | 関数 | 機能 |
 | --- | --- |
 | `ensure_simulation_runs_table(cursor)` | `Simulation_Runs` 実行サマリーテーブルが存在することを保証します。 |
+| `ensure_cruising_logs_environment_columns(cursor)` | 既存の `Cruising_Logs` テーブルに環境指標列を追加します。 |
 | `log_cruise()` | 車両探索結果を 1 件 `Cruising_Logs` に挿入します。 |
 | `log_run_summary()` | シナリオ単位の実行サマリーを `Simulation_Runs` に挿入します。 |
 | `sync_spots()` | シナリオ A の `occupied` 状態を `Parking_Spots` に一括反映します。 |
 | `sync_spots_priced()` | シナリオ B の `occupied` と `current_price` を一括反映します。 |
 
-### 7.3 `scripts/core/parking_logic.py`
+### 7.3 `scripts/core/emissions.py`
+
+| 関数 / 定数 | 機能 |
+| --- | --- |
+| `EMISSION_SUB_VARS` | 燃料、CO2、CO、HC、NOx、PMx、騒音の TraCI 車両購読変数です。 |
+| `init_environment_stats()` | 車両ごとの環境指標累積フィールドを初期化します。 |
+| `accumulate_environment(stats, data)` | 1 ステップ分の TraCI 排出データを車両状態に累積します。 |
+| `environment_log_values(stats)` | `Cruising_Logs` に書き込む環境指標値を生成します。 |
+
+### 7.4 `scripts/core/parking_logic.py`
 
 | 関数 | 機能 |
 | --- | --- |
@@ -300,7 +317,7 @@ dbspre/
 | `check_pending()` | pending スペースの edge に到達した車両に対して実際の駐車を試みます。 |
 | `handle_occupied()` | 無効、満車、通過済みの目標スペースを取り消し、車両を再ルーティングします。 |
 
-### 7.4 `scripts/core/gui_tracker.py`
+### 7.5 `scripts/core/gui_tracker.py`
 
 | クラス / メソッド | 機能 |
 | --- | --- |
@@ -309,7 +326,7 @@ dbspre/
 | `current_protagonist` | 現在追跡中の車両 ID を返します。 |
 | `on_vehicle_parked(vid)` | 追跡車両が駐車した後、追跡対象を解除します。 |
 
-### 7.5 `scripts/core/monitor.py`
+### 7.6 `scripts/core/monitor.py`
 
 | クラス / 関数 | 機能 |
 | --- | --- |
@@ -319,7 +336,7 @@ dbspre/
 | `_render_full()` | シナリオ A 用 6 パネルモニター。 |
 | `_render_compact()` | シナリオ B 用 4 パネルモニター。 |
 
-### 7.6 `scripts/core/recording.py`
+### 7.7 `scripts/core/recording.py`
 
 | クラス / 関数 | 機能 |
 | --- | --- |
@@ -328,13 +345,13 @@ dbspre/
 | `ScreenRecorder.stop()` | ffmpeg を正常停止し、中断された実行でも動画生成をできるだけ保証します。 |
 | `prepare_visual_session()` | ウィンドウ配置、録画開始、プリロール待機を行います。 |
 
-### 7.7 `scripts/core/reset_db.py`
+### 7.8 `scripts/core/reset_db.py`
 
 | 関数 | 機能 |
 | --- | --- |
 | `reset_database(clear_logs=False, scenario_to_clear=None)` | 駐車占有と価格を初期化し、全ログまたは指定シナリオログを選択的に削除します。 |
 
-### 7.8 `scripts/run_scenario_A_baseline.py`
+### 7.9 `scripts/run_scenario_A_baseline.py`
 
 | 関数 | 機能 |
 | --- | --- |
@@ -349,7 +366,7 @@ dbspre/
 | `_process_vehicle()` | シナリオ A の単一車両について指標、探索、駐車、タイムアウト、再ルーティングを処理します。 |
 | `run_baseline()` | シナリオ A のメイン入口です。 |
 
-### 7.9 `scripts/run_scenario_B_smart.py`
+### 7.10 `scripts/run_scenario_B_smart.py`
 
 | 関数 | 機能 |
 | --- | --- |
@@ -365,7 +382,7 @@ dbspre/
 | `_process_driving()` | 走行車両を更新し、駐車成功または車両消失を検出します。 |
 | `run_smart_booking_with_pricing()` | シナリオ B のメイン入口です。 |
 
-### 7.10 その他のスクリプト
+### 7.11 その他のスクリプト
 
 | スクリプト / 関数 | 機能 |
 | --- | --- |
@@ -386,6 +403,9 @@ dbspre/
 - 全車両駐車完了時間: `Simulation_Runs.completion_time_sec`
 - 駐車率: `Simulation_Runs.parking_rate`
 - 総燃料消費: `SUM(total_fuel_mg)`
+- 総 CO2: `SUM(total_co2_mg)`
+- 有害ガスと粒子状物質: `SUM(total_co_mg)`, `SUM(total_hc_mg)`, `SUM(total_nox_mg)`, `SUM(total_pmx_mg)`
+- 平均騒音: `AVG(avg_noise_db)`
 - シナリオ A 巡航距離: `SUM(cruising_distance_m)`
 
 現在は両シナリオとも 100% の駐車率に達するため、レポートとダッシュボードでは成功率を主要比較指標として扱いません。主な比較対象は、全車両の駐車完了に必要な全体シミュレーション時間です。

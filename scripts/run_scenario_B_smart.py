@@ -19,6 +19,12 @@ from core.config import (
 )
 from core.connection import get_db_connection
 from core.db_ops import log_cruise, log_run_summary, sync_spots_priced
+from core.emissions import (
+    EMISSION_SUB_VARS,
+    accumulate_environment,
+    environment_log_values,
+    init_environment_stats,
+)
 from core.gui_tracker import GUITracker
 from core.monitor import MultiprocessingPlotter
 from core.recording import prepare_visual_session
@@ -127,22 +133,21 @@ def _assign_vehicle(vid, spot_id, all_spots, veh_stats, current_time):
 
     traci.vehicle.changeTarget(vid, edge_id)
     traci.vehicle.setParkingAreaStop(vid, spot_id, duration=360000.0)
-    traci.vehicle.subscribe(
-        vid, [tc.VAR_FUELCONSUMPTION, tc.VAR_DISTANCE, tc.VAR_SPEED]
-    )
+    traci.vehicle.subscribe(vid, [tc.VAR_DISTANCE, tc.VAR_SPEED, *EMISSION_SUB_VARS])
 
     # 所有 TraCI 调用成功后才更新预订计数
     all_spots[spot_id]["booked"] += 1
 
-    veh_stats[vid] = {
+    stats = {
         "status": "driving",
         "target_spot": spot_id,
         "spawn_time": current_time,
         "search_time": 0.0,
-        "total_fuel": 0.0,
         "last_dist": 0.0,
         "speed": 0.0,
     }
+    stats.update(init_environment_stats())
+    veh_stats[vid] = stats
 
 
 # ---------------------------------------------------------------------------
@@ -151,14 +156,21 @@ def _assign_vehicle(vid, spot_id, all_spots, veh_stats, current_time):
 def _settle(vid, stats, current_time, spot_id, cursor, conn):
     """结算车辆行驶日志。"""
     stats["search_time"] = current_time - stats["spawn_time"]
+    env = environment_log_values(stats)
     log_cruise(
         cursor,
         vid,
         SCENARIO_B_NAME,
         stats["search_time"],
         0,  # 场景B为预订模式，不存在巡航绕圈行为
-        stats.get("total_fuel", 0.0),
+        env["total_fuel"],
         spot_id,
+        env["total_co2"],
+        env["total_co"],
+        env["total_hc"],
+        env["total_nox"],
+        env["total_pmx"],
+        env["avg_noise"],
     )
     conn.commit()
 
@@ -215,7 +227,7 @@ def _process_driving(
         # 累计指标
         data = sub_results[vid]
         stats["last_dist"] = data[tc.VAR_DISTANCE]
-        stats["total_fuel"] += data[tc.VAR_FUELCONSUMPTION]
+        accumulate_environment(stats, data)
         stats["speed"] = data[tc.VAR_SPEED]
 
         # 检测是否已停好

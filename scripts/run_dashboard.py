@@ -4,7 +4,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from core.connection import get_db_connection
-from core.db_ops import ensure_simulation_runs_table
+from core.db_ops import (
+    ensure_cruising_logs_environment_columns,
+    ensure_simulation_runs_table,
+)
 
 # -----------------------------------------------------------------------------
 # Streamlit 页面基础配置
@@ -34,6 +37,7 @@ def fetch_data():
         conn = get_db_connection()
         cursor = conn.cursor()
         ensure_simulation_runs_table(cursor)
+        ensure_cruising_logs_environment_columns(cursor)
         conn.commit()
 
         query = """
@@ -54,6 +58,12 @@ def fetch_data():
                     COUNT(vehicle_id) AS logged_cars,
                     AVG(search_time_sec) AS avg_search_all,
                     SUM(total_fuel_mg) / 1000000.0 AS total_fuel_kg,
+                    SUM(total_co2_mg) / 1000000.0 AS total_co2_kg,
+                    SUM(total_co_mg) / 1000.0 AS total_co_g,
+                    SUM(total_hc_mg) / 1000.0 AS total_hc_g,
+                    SUM(total_nox_mg) / 1000.0 AS total_nox_g,
+                    SUM(total_pmx_mg) / 1000.0 AS total_pmx_g,
+                    AVG(NULLIF(avg_noise_db, 0)) AS avg_noise_db,
                     SUM(cruising_distance_m) / 1000.0 AS total_dist_km
                 FROM Cruising_Logs
                 GROUP BY scenario
@@ -67,6 +77,12 @@ def fetch_data():
                 r.completion_time_sec,
                 l.avg_search_all,
                 COALESCE(l.total_fuel_kg, 0) AS total_fuel_kg,
+                COALESCE(l.total_co2_kg, 0) AS total_co2_kg,
+                COALESCE(l.total_co_g, 0) AS total_co_g,
+                COALESCE(l.total_hc_g, 0) AS total_hc_g,
+                COALESCE(l.total_nox_g, 0) AS total_nox_g,
+                COALESCE(l.total_pmx_g, 0) AS total_pmx_g,
+                COALESCE(l.avg_noise_db, 0) AS avg_noise_db,
                 COALESCE(l.total_dist_km, 0) AS total_dist_km
             FROM latest_runs r
             FULL OUTER JOIN log_metrics l ON r.scenario = l.scenario
@@ -109,6 +125,8 @@ else:
     both_completed = abs(success_A - 100.0) < 1e-6 and abs(success_B - 100.0) < 1e-6
     completion_delta = row_B["completion_time_sec"] - row_A["completion_time_sec"]
     fuel_delta = row_B["total_fuel_kg"] - row_A["total_fuel_kg"]
+    co2_delta = row_B["total_co2_kg"] - row_A["total_co2_kg"]
+    noise_delta = row_B["avg_noise_db"] - row_A["avg_noise_db"]
     dist_saved = row_A["total_dist_km"] - row_B["total_dist_km"]
 
     st.markdown("### 📊 核心指标看板 (KPIs)")
@@ -136,9 +154,9 @@ else:
         )
     with col4:
         st.metric(
-            label="系统总油耗",
-            value=f"{row_B['total_fuel_kg']:.2f} kg",
-            delta=f"{fuel_delta:.2f} kg（相比场景 A）",
+            label="系统总 CO2",
+            value=f"{row_B['total_co2_kg']:.2f} kg",
+            delta=f"{co2_delta:.2f} kg（相比场景 A）",
             delta_color="inverse",
         )
 
@@ -227,19 +245,35 @@ else:
                     marker_color="#475569",
                 ),
                 go.Bar(
-                    name="巡航距离 (km)",
+                    name="CO2 (kg)",
                     x=df["scenario"],
-                    y=df["total_dist_km"],
-                    marker_color="#f59e0b",
+                    y=df["total_co2_kg"],
+                    marker_color="#0f766e",
                 ),
             ]
         )
         fig_environment.update_layout(
             barmode="group",
-            title="油耗与无效巡航距离",
+            title="燃油与 CO2 排放",
             template="plotly_white",
         )
         st.plotly_chart(fig_environment, use_container_width=True)
+
+    fig_pollutants = go.Figure(
+        data=[
+            go.Bar(name="CO (g)", x=df["scenario"], y=df["total_co_g"]),
+            go.Bar(name="HC (g)", x=df["scenario"], y=df["total_hc_g"]),
+            go.Bar(name="NOx (g)", x=df["scenario"], y=df["total_nox_g"]),
+            go.Bar(name="PMx (g)", x=df["scenario"], y=df["total_pmx_g"]),
+        ]
+    )
+    fig_pollutants.update_layout(
+        barmode="group",
+        title="有害尾气污染物累计排放",
+        yaxis_title="质量 (g)",
+        template="plotly_white",
+    )
+    st.plotly_chart(fig_pollutants, use_container_width=True)
 
     st.markdown("---")
     st.markdown("### 💡 结果解释")
@@ -251,10 +285,12 @@ else:
         f"场景 B 用时 **{_format_duration(row_B['completion_time_sec'])}**。"
     )
     st.info(
-        f"**运行成本：** 场景 B 相比场景 A 的总油耗变化为 **{fuel_delta:.2f} kg**，"
+        f"**环境成本：** 场景 B 相比场景 A 的总油耗变化为 **{fuel_delta:.2f} kg**，"
+        f"CO2 变化为 **{co2_delta:.2f} kg**，"
+        f"平均噪声变化为 **{noise_delta:.2f} dB**，"
         f"无效巡航距离减少 **{dist_saved:.1f} km**。"
     )
 
     st.caption(
-        "注：完成全部停放时间来自 Simulation_Runs.completion_time_sec，表示该场景完成所有已处理车辆停放所需的全局仿真时间。"
+        "注：完成全部停放时间来自 Simulation_Runs.completion_time_sec；环境指标来自 Cruising_Logs 中逐车累计的 SUMO TraCI 排放变量。"
     )
