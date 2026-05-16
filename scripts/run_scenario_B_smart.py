@@ -11,7 +11,6 @@ from core.config import (
     SCENARIO_B_NAME,
     SIMULATION_DURATION_LIMIT,
     STREET_SPOT_THRESHOLD,
-    TARGET_TIMEOUT,
     TOTAL_VEHICLES_TARGET,
     WEIGHT_DISTANCE,
     WEIGHT_PRICE,
@@ -172,10 +171,8 @@ def _handle_departed(departed, all_spots, veh_stats, current_time):
             )
 
 
-def _process_driving(
-    veh_stats, sub_results, current_time, all_spots, cursor, conn, gui
-):
-    """行驶中车辆：指标更新、消失检测、超时放弃、泊车结算。"""
+def _process_driving(veh_stats, sub_results, current_time, active, all_spots, cursor, conn, gui):
+    """行驶中车辆：指标更新、消失检测、泊车结算。"""
     completed = 0
     teleported = 0
 
@@ -183,7 +180,19 @@ def _process_driving(
         if stats["status"] != "driving":
             continue
 
-        # 订阅缺失：先检查是否实际已停好，再判定为 teleported
+        # 基于活跃列表判断车辆是否从路网中消失
+        if vid not in active:
+            old_target = stats["target_spot"]
+            if old_target and old_target in all_spots:
+                all_spots[old_target]["booked"] = max(
+                    0, all_spots[old_target]["booked"] - 1
+                )
+            stats["status"] = "teleported"
+            teleported += 1
+            _settle(vid, stats, current_time, None, cursor, conn)
+            continue
+
+        # 订阅缺失：可能刚停好导致 SUMO 取消了订阅，先确认
         if vid not in sub_results:
             try:
                 if traci.vehicle.isStoppedParking(vid):
@@ -191,14 +200,14 @@ def _process_driving(
                     stats["status"] = "parked"
                     _settle(vid, stats, current_time, target, cursor, conn)
                     if gui and vid == gui.current_protagonist:
+                        traci.simulation.writeMessage(
+                            f"🎉 [停车报告出炉] 司机 {vid} 停好了！\n"
+                            f"   ✅ 最终落脚点: {target}"
+                        )
                         gui.on_vehicle_parked(vid)
                     completed += 1
-                    continue
             except traci.exceptions.TraCIException:
                 pass
-            stats["status"] = "teleported"
-            teleported += 1
-            _settle(vid, stats, current_time, None, cursor, conn)
             continue
 
         # 累计指标
@@ -206,28 +215,6 @@ def _process_driving(
         stats["last_dist"] = data[tc.VAR_DISTANCE]
         stats["total_fuel"] += data[tc.VAR_FUELCONSUMPTION]
         stats["speed"] = data[tc.VAR_SPEED]
-
-        # 超时检测：锁定车位后长时间未泊入则放弃
-        target_locked_at = stats.get("target_at", current_time)
-        if current_time - target_locked_at > TARGET_TIMEOUT:
-            old_target = stats["target_spot"]
-            if old_target and old_target in all_spots:
-                all_spots[old_target]["booked"] = max(
-                    0, all_spots[old_target]["booked"] - 1
-                )
-            try:
-                traci.vehicle.setParkingAreaStop(vid, old_target, duration=0)
-            except traci.exceptions.TraCIException:
-                pass
-            stats["status"] = "teleported"
-            teleported += 1
-            _settle(vid, stats, current_time, None, cursor, conn)
-            if gui and vid == gui.current_protagonist:
-                traci.simulation.writeMessage(
-                    f"⏰ [超时] 司机 {vid} 未能到达 {old_target}"
-                )
-                gui.on_vehicle_parked(vid)
-            continue
 
         # 检测是否已停好
         try:
@@ -295,7 +282,7 @@ def run_smart_booking_with_pricing():
         # 行驶中车辆处理
         sub_results = traci.vehicle.getAllSubscriptionResults()
         c, t = _process_driving(
-            veh_stats, sub_results, current_time, all_spots, cursor, conn, gui
+            veh_stats, sub_results, current_time, active, all_spots, cursor, conn, gui
         )
         completed += c
         teleported += t
