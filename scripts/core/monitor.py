@@ -6,6 +6,41 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 
+def _place_window_right_half(fig):
+    """Place the TkAgg matplotlib window on the right half of the primary screen."""
+    manager = getattr(fig.canvas, "manager", None)
+    window = getattr(manager, "window", None)
+    if window is None:
+        return
+
+    try:
+        window.update_idletasks()
+        screen_w = window.winfo_screenwidth()
+        screen_h = window.winfo_screenheight()
+        width = screen_w // 2
+        height = screen_h
+        x = screen_w - width
+        y = 0
+        window.geometry(f"{width}x{height}+{x}+{y}")
+        window.state("normal")
+        fig.canvas.draw_idle()
+    except Exception:
+        # Window placement is backend/OS dependent; plotting should continue if it fails.
+        pass
+
+
+def _keep_window_responsive(fig):
+    """Pump matplotlib/Tk events so the window stays responsive while idle."""
+    if not plt.fignum_exists(fig.number):
+        return False
+    try:
+        fig.canvas.flush_events()
+        plt.pause(0.01)
+    except Exception:
+        return False
+    return True
+
+
 def _render_full(q, title):
     """场景 A：6 图面板（含巡航指标）。"""
     plt.rcParams["font.sans-serif"] = [
@@ -16,6 +51,7 @@ def _render_full(q, title):
 
     plt.ion()
     fig, axs = plt.subplots(2, 3, figsize=(9.6, 10.8))
+    _place_window_right_half(fig)
     fig.suptitle(title, fontsize=16, fontweight="bold")
 
     steps, cruise_y, parked_y, time_y, fuel_y = [], [], [], [], []
@@ -55,10 +91,12 @@ def _render_full(q, title):
     for ax in active_axs:
         ax.grid(True, linestyle="--", alpha=0.5)
     fig.tight_layout(pad=3.0)
+    fig.canvas.draw()
+    fig.canvas.flush_events()
 
     while True:
         try:
-            data = q.get(timeout=1.0)
+            data = q.get(timeout=0.05)
             batch = [data]
             while True:
                 try:
@@ -90,11 +128,14 @@ def _render_full(q, title):
                     ax.relim()
                     ax.autoscale_view()
                 fig.canvas.draw()
-                fig.canvas.flush_events()
+                if not _keep_window_responsive(fig):
+                    break
 
             if stop_received:
                 break
         except queue.Empty:
+            if not _keep_window_responsive(fig):
+                break
             continue
         except Exception:
             break
@@ -113,6 +154,7 @@ def _render_compact(q, title):
 
     plt.ion()
     fig, axs = plt.subplots(2, 2, figsize=(9.6, 7.2))
+    _place_window_right_half(fig)
     fig.suptitle(title, fontsize=16, fontweight="bold")
 
     steps, parked_y, time_y, fuel_y, avg_speed_y = [], [], [], [], []
@@ -141,10 +183,12 @@ def _render_compact(q, title):
     for ax in active_axs:
         ax.grid(True, linestyle="--", alpha=0.5)
     fig.tight_layout(pad=3.0)
+    fig.canvas.draw()
+    fig.canvas.flush_events()
 
     while True:
         try:
-            data = q.get(timeout=1.0)
+            data = q.get(timeout=0.05)
             batch = [data]
             while True:
                 try:
@@ -172,11 +216,14 @@ def _render_compact(q, title):
                     ax.relim()
                     ax.autoscale_view()
                 fig.canvas.draw()
-                fig.canvas.flush_events()
+                if not _keep_window_responsive(fig):
+                    break
 
             if stop_received:
                 break
         except queue.Empty:
+            if not _keep_window_responsive(fig):
+                break
             continue
         except Exception:
             break

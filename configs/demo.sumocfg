@@ -8,8 +8,8 @@
 
     <gui>
         <gui-settings-file value="gui-settings.xml" />
-        <start value="false" />
-        <delay value="35" />
+        <start value="true" />
+        <delay value="10" />
     </gui>
 
 </configuration>

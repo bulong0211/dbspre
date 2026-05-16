@@ -9,6 +9,7 @@ import traci.exceptions
 from core.config import (
     CONFIG_DIR,
     DB_SYNC_INTERVAL,
+    ENABLE_SCREEN_RECORDING,
     PARKING_SCAN_INTERVAL,
     PLOTTER_UPDATE_INTERVAL,
     ROUTE_EXHAUSTION_MARGIN,
@@ -29,6 +30,7 @@ from core.parking_logic import (
     scan_street,
     try_park,
 )
+from core.recording import prepare_visual_session
 from core.reset_db import reset_database
 
 
@@ -357,116 +359,123 @@ def run_baseline():
     edge_lengths = {eid: ed["length"] for eid, ed in all_edges.items()}
     spots_by_edge = _spots_by_edge(all_spots)
 
-    gui = GUITracker()
-    plotter = MultiprocessingPlotter("场景 A — 全路网盲目寻位模式")
-
     veh_stats = {}
     cruising_vids = set()
     completed = teleported = 0
+    plotter = None
+    recorder = None
 
-    print("🚀 启动场景 A (全路网盲目寻位) — 最大限时 2 小时...")
-    traci.start(sumoCmd)
+    try:
+        print("🚀 启动场景 A (全路网盲目寻位) — 最大限时 2 小时...")
+        traci.start(sumoCmd)
+        gui = GUITracker()
+        plotter = MultiprocessingPlotter("场景 A — 全路网盲目寻位模式")
+        recorder = prepare_visual_session(SCENARIO_A_NAME, ENABLE_SCREEN_RECORDING)
 
-    current_time = 0
-    while (
-        traci.simulation.getMinExpectedNumber() > 0
-        and current_time <= SIMULATION_DURATION_LIMIT
-    ):
-        traci.simulationStep()
-        current_time = traci.simulation.getTime()
-        active = traci.vehicle.getIDList()
+        current_time = 0
+        while (
+            traci.simulation.getMinExpectedNumber() > 0
+            and current_time <= SIMULATION_DURATION_LIMIT
+        ):
+            traci.simulationStep()
+            current_time = traci.simulation.getTime()
+            active = traci.vehicle.getIDList()
 
-        gui.update(active, veh_stats, current_time)
+            gui.update(active, veh_stats, current_time)
 
-        # 新车初始化
-        for vid in traci.simulation.getDepartedIDList():
+            # 新车初始化
+            for vid in traci.simulation.getDepartedIDList():
+                try:
+                    traci.vehicle.setShapeClass(vid, "passenger")
+                    traci.vehicle.setSpeedFactor(vid, 0.4)
+                    traci.vehicle.setImperfection(vid, 0.9)
+                    traci.vehicle.subscribe(vid, SUB_VARS)
+                except traci.exceptions.TraCIException:
+                    continue
+                veh_stats[vid] = _init_stats(current_time)
+                cruising_vids.add(vid)
+                if not reroute_random(vid, all_edges_list, opposite_map, outgoing_map):
+                    _settle_lost(vid, veh_stats[vid], current_time, cursor, conn)
+                    cruising_vids.discard(vid)
+                    teleported += 1
+
+            sub_results = traci.vehicle.getAllSubscriptionResults()
+
+            # 行驶中车辆处理
+            for vid in list(cruising_vids):
+                stats = veh_stats.get(vid)
+                if stats is None or stats["status"] != "cruising":
+                    cruising_vids.discard(vid)
+                    continue
+                if vid not in sub_results:
+                    _settle_lost(vid, stats, current_time, cursor, conn)
+                    cruising_vids.discard(vid)
+                    teleported += 1
+                    continue
+                parked = _process_vehicle(
+                    vid,
+                    stats,
+                    sub_results[vid],
+                    current_time,
+                    all_spots,
+                    spots_by_edge,
+                    all_edges_list,
+                    opposite_map,
+                    outgoing_map,
+                    edge_lengths,
+                    cursor,
+                    conn,
+                    gui,
+                )
+                if parked:
+                    cruising_vids.discard(vid)
+                    completed += 1
+
+            # 监控面板刷新
+            if int(current_time) % PLOTTER_UPDATE_INTERVAL == 0:
+                plotter.send_data(int(current_time), veh_stats)
+
+            # 提前完赛检测
+            if (completed + teleported) == TOTAL_VEHICLES_TARGET:
+                h, m = int(current_time // 3600), int((current_time % 3600) // 60)
+                s = int(current_time % 60)
+                print(f"\n{'✨' * 30}")
+                print("🎉 提前完赛！系统已达到 100% 处理率。")
+                print(f"⏱️ 全局时间：{h}h{m}m{s}s ({current_time:.0f}s)")
+                print(f"{'✨' * 30}\n")
+                break
+
+            # 定期同步数据库
+            if int(current_time) % DB_SYNC_INTERVAL == 0 and current_time > 0:
+                sync_spots(cursor, conn, all_spots)
+
+        # 收尾
+        print("💾 同步最终车位状态...")
+        sync_spots(cursor, conn, all_spots)
+
+        if current_time >= SIMULATION_DURATION_LIMIT:
+            print("⏳ 仿真时间达到上限，结算剩余车辆...")
+            for vid in list(cruising_vids):
+                stats = veh_stats.get(vid)
+                if stats is None or stats["status"] != "cruising":
+                    continue
+                try:
+                    curr_dist = traci.vehicle.getDistance(vid)
+                except traci.exceptions.TraCIException:
+                    curr_dist = stats.get("last_dist", 0.0)
+                _settle(vid, stats, current_time, curr_dist, None, cursor, conn)
+            conn.commit()
+
+        print(f"🏁 场景 A 结束。t={current_time:.0f}s 完成={completed} 丢失={teleported}")
+    finally:
+        if recorder is not None:
+            recorder.stop()
+        for obj in (traci, plotter, cursor, conn):
             try:
-                traci.vehicle.setShapeClass(vid, "passenger")
-                traci.vehicle.setSpeedFactor(vid, 0.4)
-                traci.vehicle.setImperfection(vid, 0.9)
-                traci.vehicle.subscribe(vid, SUB_VARS)
-            except traci.exceptions.TraCIException:
-                continue
-            veh_stats[vid] = _init_stats(current_time)
-            cruising_vids.add(vid)
-            if not reroute_random(vid, all_edges_list, opposite_map, outgoing_map):
-                _settle_lost(vid, veh_stats[vid], current_time, cursor, conn)
-                cruising_vids.discard(vid)
-                teleported += 1
-
-        sub_results = traci.vehicle.getAllSubscriptionResults()
-
-        # 行驶中车辆处理
-        for vid in list(cruising_vids):
-            stats = veh_stats.get(vid)
-            if stats is None or stats["status"] != "cruising":
-                cruising_vids.discard(vid)
-                continue
-            if vid not in sub_results:
-                _settle_lost(vid, stats, current_time, cursor, conn)
-                cruising_vids.discard(vid)
-                teleported += 1
-                continue
-            parked = _process_vehicle(
-                vid,
-                stats,
-                sub_results[vid],
-                current_time,
-                all_spots,
-                spots_by_edge,
-                all_edges_list,
-                opposite_map,
-                outgoing_map,
-                edge_lengths,
-                cursor,
-                conn,
-                gui,
-            )
-            if parked:
-                cruising_vids.discard(vid)
-                completed += 1
-
-        # 监控面板刷新
-        if int(current_time) % PLOTTER_UPDATE_INTERVAL == 0:
-            plotter.send_data(int(current_time), veh_stats)
-
-        # 提前完赛检测
-        if (completed + teleported) == TOTAL_VEHICLES_TARGET:
-            h, m = int(current_time // 3600), int((current_time % 3600) // 60)
-            s = int(current_time % 60)
-            print(f"\n{'✨' * 30}")
-            print("🎉 提前完赛！系统已达到 100% 处理率。")
-            print(f"⏱️ 全局时间：{h}h{m}m{s}s ({current_time:.0f}s)")
-            print(f"{'✨' * 30}\n")
-            break
-
-        # 定期同步数据库
-        if int(current_time) % DB_SYNC_INTERVAL == 0 and current_time > 0:
-            sync_spots(cursor, conn, all_spots)
-
-    # 收尾
-    print("💾 同步最终车位状态...")
-    sync_spots(cursor, conn, all_spots)
-
-    if current_time >= SIMULATION_DURATION_LIMIT:
-        print("⏳ 仿真时间达到上限，结算剩余车辆...")
-        for vid in list(cruising_vids):
-            stats = veh_stats.get(vid)
-            if stats is None or stats["status"] != "cruising":
-                continue
-            try:
-                curr_dist = traci.vehicle.getDistance(vid)
-            except traci.exceptions.TraCIException:
-                curr_dist = stats.get("last_dist", 0.0)
-            _settle(vid, stats, current_time, curr_dist, None, cursor, conn)
-        conn.commit()
-
-    print(f"🏁 场景 A 结束。t={current_time:.0f}s 完成={completed} 丢失={teleported}")
-    for obj in (traci, plotter, cursor, conn):
-        try:
-            obj.close()
-        except Exception:
-            pass
+                if obj is not None:
+                    obj.close()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

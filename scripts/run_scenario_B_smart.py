@@ -7,6 +7,7 @@ import traci.constants as tc
 import traci.exceptions
 from core.config import (
     DB_SYNC_INTERVAL,
+    ENABLE_SCREEN_RECORDING,
     PLOTTER_UPDATE_INTERVAL,
     SCENARIO_B_NAME,
     SIMULATION_DURATION_LIMIT,
@@ -20,6 +21,7 @@ from core.connection import get_db_connection
 from core.db_ops import log_cruise, sync_spots_priced
 from core.gui_tracker import GUITracker
 from core.monitor import MultiprocessingPlotter
+from core.recording import prepare_visual_session
 from core.reset_db import reset_database
 
 
@@ -230,66 +232,72 @@ def run_smart_booking_with_pricing():
 
     gui = GUITracker()
     plotter = MultiprocessingPlotter("场景 B - 智能预订监控面板", layout="B")
+    recorder = None
 
-    veh_stats = {}
-    completed = 0
-    teleported = 0
-    current_time = 0
+    try:
+        recorder = prepare_visual_session(SCENARIO_B_NAME, ENABLE_SCREEN_RECORDING)
 
-    while (
-        traci.simulation.getMinExpectedNumber() > 0
-        and current_time <= SIMULATION_DURATION_LIMIT
-    ):
-        traci.simulationStep()
-        current_time = traci.simulation.getTime()
-        active = traci.vehicle.getIDList()
+        veh_stats = {}
+        completed = 0
+        teleported = 0
+        current_time = 0
 
-        gui.update(active, veh_stats, current_time)
+        while (
+            traci.simulation.getMinExpectedNumber() > 0
+            and current_time <= SIMULATION_DURATION_LIMIT
+        ):
+            traci.simulationStep()
+            current_time = traci.simulation.getTime()
+            active = traci.vehicle.getIDList()
 
-        # 每步更新浪涌定价
-        _compute_pricing(all_spots)
+            gui.update(active, veh_stats, current_time)
 
-        # 新车初始化
-        departed = traci.simulation.getDepartedIDList()
-        if departed:
-            _handle_departed(departed, all_spots, veh_stats, current_time)
+            # 每步更新浪涌定价
+            _compute_pricing(all_spots)
 
-        # 行驶中车辆处理
-        sub_results = traci.vehicle.getAllSubscriptionResults()
-        c, t = _process_driving(
-            veh_stats, sub_results, current_time, cursor, conn, gui
-        )
-        completed += c
-        teleported += t
+            # 新车初始化
+            departed = traci.simulation.getDepartedIDList()
+            if departed:
+                _handle_departed(departed, all_spots, veh_stats, current_time)
 
-        # 监控面板刷新
-        if int(current_time) % PLOTTER_UPDATE_INTERVAL == 0:
-            plotter.send_data(int(current_time), veh_stats)
+            # 行驶中车辆处理
+            sub_results = traci.vehicle.getAllSubscriptionResults()
+            c, t = _process_driving(
+                veh_stats, sub_results, current_time, cursor, conn, gui
+            )
+            completed += c
+            teleported += t
 
-        # 提前完赛检测
-        if (completed + teleported) == TOTAL_VEHICLES_TARGET:
-            h, m = int(current_time // 3600), int((current_time % 3600) // 60)
-            s = int(current_time % 60)
-            print(f"\n{'✨' * 30}")
-            print("🎉 提前完赛！系统已达到 100% 处理率。")
-            print(f"⏱️ 全局时间：{h}h{m}m{s}s ({current_time:.0f}s)")
-            print(f"{'✨' * 30}\n")
-            break
+            # 监控面板刷新
+            if int(current_time) % PLOTTER_UPDATE_INTERVAL == 0:
+                plotter.send_data(int(current_time), veh_stats)
 
-        # 定期同步数据库
-        if int(current_time) % DB_SYNC_INTERVAL == 0 and current_time > 0:
-            sync_spots_priced(cursor, conn, all_spots)
+            # 提前完赛检测
+            if (completed + teleported) == TOTAL_VEHICLES_TARGET:
+                h, m = int(current_time // 3600), int((current_time % 3600) // 60)
+                s = int(current_time % 60)
+                print(f"\n{'✨' * 30}")
+                print("🎉 提前完赛！系统已达到 100% 处理率。")
+                print(f"⏱️ 全局时间：{h}h{m}m{s}s ({current_time:.0f}s)")
+                print(f"{'✨' * 30}\n")
+                break
 
-    # 收尾
-    print("💾 同步最终车位预订与价格状态...")
-    sync_spots_priced(cursor, conn, all_spots)
-    print(f"🏁 场景 B 结束。t={current_time:.0f}s 完成={completed} 丢失={teleported}")
+            # 定期同步数据库
+            if int(current_time) % DB_SYNC_INTERVAL == 0 and current_time > 0:
+                sync_spots_priced(cursor, conn, all_spots)
 
-    for obj in (traci, plotter, cursor, conn):
-        try:
-            obj.close()
-        except Exception:
-            pass
+        # 收尾
+        print("💾 同步最终车位预订与价格状态...")
+        sync_spots_priced(cursor, conn, all_spots)
+        print(f"🏁 场景 B 结束。t={current_time:.0f}s 完成={completed} 丢失={teleported}")
+    finally:
+        if recorder is not None:
+            recorder.stop()
+        for obj in (traci, plotter, cursor, conn):
+            try:
+                obj.close()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":

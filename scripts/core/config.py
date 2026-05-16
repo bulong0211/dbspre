@@ -1,21 +1,21 @@
-"""仿真配置常量与路径定义。"""
+"""Simulation configuration constants and paths."""
 
 import os
 import sys
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
-# 路径
+# Paths
 # ---------------------------------------------------------------------------
-CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
+CONFIG_DIR = Path(__file__).resolve().parent.parent.parent / "configs"
 
 # ---------------------------------------------------------------------------
-# SUMO 环境
+# SUMO environment
 # ---------------------------------------------------------------------------
 if "SUMO_HOME" in os.environ:
     sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 else:
-    sys.exit("❌ 请声明环境变量 'SUMO_HOME'")
+    sys.exit("Please set the 'SUMO_HOME' environment variable")
 
 from sumolib import checkBinary  # noqa: E402
 
@@ -24,30 +24,30 @@ sumoBinary = checkBinary("sumo-gui") if HAS_GUI else checkBinary("sumo")
 sumoCmd = [sumoBinary, "-c", str(CONFIG_DIR / "demo.sumocfg")]
 
 # ---------------------------------------------------------------------------
-# 仿真参数
+# Simulation parameters
 # ---------------------------------------------------------------------------
 SIMULATION_DURATION_LIMIT = 7200
 TOTAL_VEHICLES_TARGET = 2500
 PARKING_DURATION = 7200
 
 # ---------------------------------------------------------------------------
-# 沿街寻位参数（模拟真实驾驶员行为）
+# Curbside search parameters
 # ---------------------------------------------------------------------------
-SIGHT_DISTANCE = 200.0  # 沿当前道路前方可见距离（米），需覆盖穿越正向道路→掉头→对向路径
-SPOT_STOP_MARGIN = 3.0  # 车位最小前方距离（米），低于此值视为已错过
-ROUTE_EXHAUSTION_MARGIN = 5  # 路由剩余边数 ≤ 此值时提前重定向
-INTERSECTION_LOOKAHEAD = 40.0  # 距路口此距离内开始扫视交叉方向道路（米）
-TARGET_TIMEOUT = 120  # 锁定车位后最长等待时间（秒），超时放弃
+SIGHT_DISTANCE = 180.0
+SPOT_STOP_MARGIN = 3.0
+ROUTE_EXHAUSTION_MARGIN = 5
+INTERSECTION_LOOKAHEAD = 40.0
+TARGET_TIMEOUT = 120
 
 # ---------------------------------------------------------------------------
-# 性能参数
+# Performance parameters
 # ---------------------------------------------------------------------------
-PARKING_SCAN_INTERVAL = 3  # 车位扫描间隔（仿真步数）
-PLOTTER_UPDATE_INTERVAL = 5  # 监控面板刷新间隔（仿真步数）
-GUI_REFRESH_INTERVAL = 3  # GUI 追踪逻辑刷新间隔（仿真步数）
+PARKING_SCAN_INTERVAL = 3
+PLOTTER_UPDATE_INTERVAL = 5
+GUI_REFRESH_INTERVAL = 3
 
 # ---------------------------------------------------------------------------
-# GUI 追踪
+# SUMO-GUI tracking
 # ---------------------------------------------------------------------------
 GUI_ZOOM_DEFAULT = 250
 GUI_ZOOM_TRACKED = 2000
@@ -55,19 +55,27 @@ TRACK_SWITCH_COOLDOWN = 20.0
 TRACKING_VEHICLE_THRESHOLD = 50
 
 # ---------------------------------------------------------------------------
-# 场景标识
+# Screen recording
+# ---------------------------------------------------------------------------
+ENABLE_SCREEN_RECORDING = True
+RECORDING_OUTPUT_DIR = CONFIG_DIR.parent / "recordings"
+RECORDING_FPS = 30
+RECORDING_PREROLL_SECONDS = 1.0
+
+# ---------------------------------------------------------------------------
+# Scenario names
 # ---------------------------------------------------------------------------
 SCENARIO_A_NAME = "Baseline"
 SCENARIO_B_NAME = "Smart_Booking_Priced"
 
 # ---------------------------------------------------------------------------
-# 场景 B 参数
+# Scenario B parameters
 # ---------------------------------------------------------------------------
 STREET_SPOT_THRESHOLD = 3
 WEIGHT_DISTANCE = 1.0
 WEIGHT_PRICE = 100.0
 
 # ---------------------------------------------------------------------------
-# 数据库
+# Database
 # ---------------------------------------------------------------------------
 DB_SYNC_INTERVAL = 60
