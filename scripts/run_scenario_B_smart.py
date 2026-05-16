@@ -192,24 +192,6 @@ def _process_driving(veh_stats, sub_results, current_time, active, all_spots, cu
             _settle(vid, stats, current_time, None, cursor, conn)
             continue
 
-        # 订阅缺失：可能刚停好导致 SUMO 取消了订阅，先确认
-        if vid not in sub_results:
-            try:
-                if traci.vehicle.isStoppedParking(vid):
-                    target = stats["target_spot"]
-                    stats["status"] = "parked"
-                    _settle(vid, stats, current_time, target, cursor, conn)
-                    if gui and vid == gui.current_protagonist:
-                        traci.simulation.writeMessage(
-                            f"🎉 [停车报告出炉] 司机 {vid} 停好了！\n"
-                            f"   ✅ 最终落脚点: {target}"
-                        )
-                        gui.on_vehicle_parked(vid)
-                    completed += 1
-            except traci.exceptions.TraCIException:
-                pass
-            continue
-
         # 累计指标
         data = sub_results[vid]
         stats["last_dist"] = data[tc.VAR_DISTANCE]
