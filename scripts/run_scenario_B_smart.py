@@ -120,7 +120,6 @@ def _assign_vehicle(vid, spot_id, all_spots, veh_stats, current_time):
     veh_stats[vid] = {
         "status": "driving",
         "target_spot": spot_id,
-        "target_at": current_time,
         "spawn_time": current_time,
         "search_time": 0.0,
         "total_fuel": 0.0,
@@ -171,7 +170,7 @@ def _handle_departed(departed, all_spots, veh_stats, current_time):
             )
 
 
-def _process_driving(veh_stats, sub_results, current_time, active, all_spots, cursor, conn, gui):
+def _process_driving(veh_stats, sub_results, current_time, cursor, conn, gui):
     """行驶中车辆：指标更新、消失检测、泊车结算。"""
     completed = 0
     teleported = 0
@@ -180,13 +179,8 @@ def _process_driving(veh_stats, sub_results, current_time, active, all_spots, cu
         if stats["status"] != "driving":
             continue
 
-        # 基于活跃列表判断车辆是否从路网中消失
-        if vid not in active:
-            old_target = stats["target_spot"]
-            if old_target and old_target in all_spots:
-                all_spots[old_target]["booked"] = max(
-                    0, all_spots[old_target]["booked"] - 1
-                )
+        # 车辆从路网中消失
+        if vid not in sub_results:
             stats["status"] = "teleported"
             teleported += 1
             _settle(vid, stats, current_time, None, cursor, conn)
@@ -207,8 +201,7 @@ def _process_driving(veh_stats, sub_results, current_time, active, all_spots, cu
 
                 if gui and vid == gui.current_protagonist:
                     traci.simulation.writeMessage(
-                        f"🎉 [停车报告出炉] 司机 {vid} 停好了！\n"
-                        f"   ✅ 最终落脚点: {target}"
+                        f"🎉 车辆 {vid} 停好了！\n✅ 最终落脚点: {target}"
                     )
                     gui.on_vehicle_parked(vid)
                 completed += 1
@@ -264,7 +257,7 @@ def run_smart_booking_with_pricing():
         # 行驶中车辆处理
         sub_results = traci.vehicle.getAllSubscriptionResults()
         c, t = _process_driving(
-            veh_stats, sub_results, current_time, active, all_spots, cursor, conn, gui
+            veh_stats, sub_results, current_time, cursor, conn, gui
         )
         completed += c
         teleported += t
