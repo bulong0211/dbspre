@@ -78,7 +78,6 @@ class ScreenRecorder:
         self.enabled = enabled
         self.process = None
         self.output_path = None
-        self._log_file = None
         self._stopped = False
         self._atexit_registered = False
 
@@ -104,8 +103,6 @@ class ScreenRecorder:
             for c in self.scenario_name
         )
         self.output_path = output_dir / f"{safe_name}_{timestamp}.mp4"
-        log_path = output_dir / f"{safe_name}_{timestamp}.ffmpeg.log"
-        self._log_file = log_path.open("w", encoding="utf-8")
 
         cmd = [
             ffmpeg,
@@ -138,8 +135,8 @@ class ScreenRecorder:
         self.process = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
-            stdout=self._log_file,
-            stderr=self._log_file,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             text=True,
             startupinfo=startupinfo,
             creationflags=creationflags,
@@ -155,7 +152,6 @@ class ScreenRecorder:
         self._stopped = True
 
         if self.process is None:
-            self._close_log()
             self._unregister_atexit()
             return
 
@@ -185,15 +181,9 @@ class ScreenRecorder:
                 except subprocess.TimeoutExpired:
                     self.process.kill()
 
-        self._close_log()
         self._unregister_atexit()
         if self.output_path:
             print(f"Screen recording stopped: {self.output_path}")
-
-    def _close_log(self):
-        if self._log_file:
-            self._log_file.close()
-            self._log_file = None
 
     def _unregister_atexit(self):
         if not self._atexit_registered:
