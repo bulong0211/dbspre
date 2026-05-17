@@ -6,8 +6,8 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10-blue.svg" alt="Python">
-  <img src="https://img.shields.io/badge/SUMO-TraCI-orange.svg" alt="SUMO">
-  <img src="https://img.shields.io/badge/Database-PostgreSQL-blue.svg" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/SUMO-1.26.0-orange.svg" alt="SUMO">
+  <img src="https://img.shields.io/badge/PostgreSQL-18.4-blue.svg" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Dashboard-Streamlit-green.svg" alt="Streamlit">
 </p>
 
@@ -35,16 +35,9 @@
 ### 2.1 要件
 
 - Python 3.10 以上
-- `SUMO_HOME` が設定された SUMO
-- PostgreSQL
-- ffmpeg、省略可能。録画有効時のみ必要
+- `SUMO_HOME` が設定された SUMO 1.26.0
+- PostgreSQL 18.4
 - 依存関係管理には `uv` を推奨
-
-PowerShell 例:
-
-```powershell
-$env:SUMO_HOME = "C:\Program Files (x86)\Eclipse\Sumo"
-```
 
 ### 2.2 データベース設定
 
@@ -126,7 +119,6 @@ uv run streamlit run scripts/run_dashboard.py
 3. `Parking_Spots`、SUMO 道路網、駐車エリアデータを読み込みます。
 4. SUMO-GUI を起動します。
 5. matplotlib リアルタイムモニターを作成します。
-6. `ENABLE_SCREEN_RECORDING=True` の場合、ffmpeg 録画を開始します。
 7. `traci.simulationStep()` メインループに入ります。
 8. 出発車両、車両状態、駐車イベント、燃料、距離指標を処理します。
 9. `DB_SYNC_INTERVAL` ごとに駐車状態を PostgreSQL に同期します。
@@ -135,14 +127,7 @@ uv run streamlit run scripts/run_dashboard.py
 
 録画設定は `scripts/core/config.py` にあります。
 
-```python
-ENABLE_SCREEN_RECORDING = True
-RECORDING_OUTPUT_DIR = CONFIG_DIR.parent / "recordings"
-RECORDING_FPS = 30
-RECORDING_PREROLL_SECONDS = 1.0
-```
 
-`recordings/` ディレクトリは git で無視されます。
 
 ---
 
@@ -238,7 +223,6 @@ dbspre/
 │   │   ├── gui_tracker.py    # SUMO-GUI カメラ追跡
 │   │   ├── monitor.py        # matplotlib リアルタイムモニター
 │   │   ├── parking_logic.py  # シナリオ A 路上探索ロジック
-│   │   ├── recording.py      # ffmpeg 録画とウィンドウ配置
 │   │   └── reset_db.py       # DB リセット補助
 │   ├── generate_network.ps1  # 道路網生成
 │   ├── generate_parking.py   # 駐車 XML と SQL 生成
@@ -248,7 +232,6 @@ dbspre/
 │   ├── run_dashboard.py      # Streamlit ダッシュボード
 │   ├── run_scenario_A_baseline.py # シナリオ A メインプログラム
 │   └── run_scenario_B_smart.py    # シナリオ B メインプログラム
-└── recordings/               # ローカル録画出力、コミット対象外
 ```
 
 ---
@@ -332,14 +315,6 @@ dbspre/
 | `_render_full()` | シナリオ A 用 6 パネルモニター。 |
 | `_render_compact()` | シナリオ B 用 4 パネルモニター。 |
 
-### 7.7 `scripts/core/recording.py`
-
-| クラス / 関数 | 機能 |
-| --- | --- |
-| `place_sumo_left_half()` | Windows で SUMO-GUI を画面左半分へ移動します。 |
-| `ScreenRecorder.start()` | ffmpeg `gdigrab` でデスクトップ録画を開始します。 |
-| `ScreenRecorder.stop()` | ffmpeg を正常停止し、中断された実行でも動画生成をできるだけ保証します。 |
-| `prepare_visual_session()` | ウィンドウ配置、録画開始、プリロール待機を行います。 |
 
 ### 7.8 `scripts/core/reset_db.py`
 
@@ -418,4 +393,5 @@ dbspre/
 | 総 NOx | 413.17 g | 190.02 g |
 | 総 PMx | 46.53 g | 46.08 g |
 
-収集されていない、またはデータベースに書き込まれていない指標を、レポート、論文、ダッシュボードで実測結果として扱うべきではありません。
+
+

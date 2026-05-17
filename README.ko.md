@@ -6,8 +6,8 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10-blue.svg" alt="Python">
-  <img src="https://img.shields.io/badge/SUMO-TraCI-orange.svg" alt="SUMO">
-  <img src="https://img.shields.io/badge/Database-PostgreSQL-blue.svg" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/SUMO-1.26.0-orange.svg" alt="SUMO">
+  <img src="https://img.shields.io/badge/PostgreSQL-18.4-blue.svg" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Dashboard-Streamlit-green.svg" alt="Streamlit">
 </p>
 
@@ -35,16 +35,9 @@
 ### 2.1 요구 사항
 
 - Python 3.10 이상
-- `SUMO_HOME`이 설정된 SUMO
-- PostgreSQL
-- ffmpeg, 선택 사항이며 녹화가 켜져 있을 때만 필요
+- `SUMO_HOME`이 설정된 SUMO 1.26.0
+- PostgreSQL 18.4
 - 의존성 관리는 `uv` 권장
-
-PowerShell 예:
-
-```powershell
-$env:SUMO_HOME = "C:\Program Files (x86)\Eclipse\Sumo"
-```
 
 ### 2.2 데이터베이스 설정
 
@@ -126,7 +119,6 @@ uv run streamlit run scripts/run_dashboard.py
 3. `Parking_Spots`, SUMO 도로망, 주차 영역 데이터를 로드합니다.
 4. SUMO-GUI를 시작합니다.
 5. matplotlib 실시간 모니터를 생성합니다.
-6. `ENABLE_SCREEN_RECORDING=True`이면 ffmpeg 녹화를 시작합니다.
 7. `traci.simulationStep()` 메인 루프에 진입합니다.
 8. 출발 차량, 차량 상태, 주차 이벤트, 연료와 거리 지표를 처리합니다.
 9. `DB_SYNC_INTERVAL`마다 주차 상태를 PostgreSQL에 동기화합니다.
@@ -135,14 +127,7 @@ uv run streamlit run scripts/run_dashboard.py
 
 녹화 설정은 `scripts/core/config.py`에 있습니다.
 
-```python
-ENABLE_SCREEN_RECORDING = True
-RECORDING_OUTPUT_DIR = CONFIG_DIR.parent / "recordings"
-RECORDING_FPS = 30
-RECORDING_PREROLL_SECONDS = 1.0
-```
 
-`recordings/` 디렉터리는 git에서 무시됩니다.
 
 ---
 
@@ -238,7 +223,6 @@ dbspre/
 │   │   ├── gui_tracker.py    # SUMO-GUI 카메라 추적
 │   │   ├── monitor.py        # matplotlib 실시간 모니터
 │   │   ├── parking_logic.py  # 시나리오 A 도로변 탐색 로직
-│   │   ├── recording.py      # ffmpeg 녹화 및 창 배치
 │   │   └── reset_db.py       # 데이터베이스 초기화 도구
 │   ├── generate_network.ps1  # 도로망 생성
 │   ├── generate_parking.py   # 주차 XML 및 SQL 생성
@@ -248,7 +232,6 @@ dbspre/
 │   ├── run_dashboard.py      # Streamlit 대시보드
 │   ├── run_scenario_A_baseline.py # 시나리오 A 메인 프로그램
 │   └── run_scenario_B_smart.py    # 시나리오 B 메인 프로그램
-└── recordings/               # 로컬 녹화 출력, 커밋하지 않음
 ```
 
 ---
@@ -332,14 +315,6 @@ dbspre/
 | `_render_full()` | 시나리오 A용 6개 패널 모니터입니다. |
 | `_render_compact()` | 시나리오 B용 4개 패널 모니터입니다. |
 
-### 7.7 `scripts/core/recording.py`
-
-| 클래스 / 함수 | 기능 |
-| --- | --- |
-| `place_sumo_left_half()` | Windows에서 SUMO-GUI를 화면 왼쪽 절반으로 이동합니다. |
-| `ScreenRecorder.start()` | ffmpeg `gdigrab`로 데스크톱 녹화를 시작합니다. |
-| `ScreenRecorder.stop()` | ffmpeg를 정상 종료해 중단된 실행에서도 영상 생성을 최대한 보장합니다. |
-| `prepare_visual_session()` | 창 배치, 녹화 시작, 프리롤 대기를 수행합니다. |
 
 ### 7.8 `scripts/core/reset_db.py`
 
@@ -418,4 +393,5 @@ dbspre/
 | 총 NOx | 413.17 g | 190.02 g |
 | 총 PMx | 46.53 g | 46.08 g |
 
-수집되거나 데이터베이스에 기록되지 않은 지표는 보고서, 논문, 대시보드에서 실측 결과로 다루면 안 됩니다.
+
+

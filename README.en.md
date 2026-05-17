@@ -6,8 +6,8 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10-blue.svg" alt="Python">
-  <img src="https://img.shields.io/badge/SUMO-TraCI-orange.svg" alt="SUMO">
-  <img src="https://img.shields.io/badge/Database-PostgreSQL-blue.svg" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/SUMO-1.26.0-orange.svg" alt="SUMO">
+  <img src="https://img.shields.io/badge/PostgreSQL-18.4-blue.svg" alt="PostgreSQL">
   <img src="https://img.shields.io/badge/Dashboard-Streamlit-green.svg" alt="Streamlit">
 </p>
 
@@ -35,16 +35,9 @@ Experiment results should be read from the latest database records in `Simulatio
 ### 2.1 Requirements
 
 - Python 3.10 or later
-- SUMO with `SUMO_HOME` configured
-- PostgreSQL
-- ffmpeg, optional and only needed when recording is enabled
+- SUMO 1.26.0 with `SUMO_HOME` configured
+- PostgreSQL 18.4
 - `uv` is recommended for dependency management
-
-PowerShell example:
-
-```powershell
-$env:SUMO_HOME = "C:\Program Files (x86)\Eclipse\Sumo"
-```
 
 ### 2.2 Database Configuration
 
@@ -126,23 +119,14 @@ Scenario scripts follow this flow:
 3. Load `Parking_Spots`, SUMO network data, and parking area data.
 4. Start SUMO-GUI.
 5. Create the matplotlib real-time monitor.
-6. If `ENABLE_SCREEN_RECORDING=True`, start ffmpeg recording.
 7. Enter the `traci.simulationStep()` main loop.
 8. Process departures, vehicle state, parking events, fuel, and distance metrics.
 9. Sync parking state to PostgreSQL every `DB_SYNC_INTERVAL`.
 10. Write a scenario-level summary to `Simulation_Runs`, including completion time, total vehicles, parked vehicles, failed vehicles, and parking rate.
-11. On completion or interruption, close recording, TraCI, plotting, and database resources.
-
+10. On completion or interruption, close TraCI, plotting, and database resources.`n
 Recording is configured in `scripts/core/config.py`:
 
-```python
-ENABLE_SCREEN_RECORDING = True
-RECORDING_OUTPUT_DIR = CONFIG_DIR.parent / "recordings"
-RECORDING_FPS = 30
-RECORDING_PREROLL_SECONDS = 1.0
-```
 
-The `recordings/` directory is ignored by git.
 
 ---
 
@@ -238,7 +222,6 @@ dbspre/
 │   │   ├── gui_tracker.py    # SUMO-GUI camera tracking
 │   │   ├── monitor.py        # matplotlib real-time monitor
 │   │   ├── parking_logic.py  # Scenario A curbside search logic
-│   │   ├── recording.py      # ffmpeg recording and window placement
 │   │   └── reset_db.py       # Database reset helper
 │   ├── generate_network.ps1  # Network generation
 │   ├── generate_parking.py   # Parking XML and SQL generation
@@ -248,7 +231,6 @@ dbspre/
 │   ├── run_dashboard.py      # Streamlit dashboard
 │   ├── run_scenario_A_baseline.py # Scenario A main program
 │   └── run_scenario_B_smart.py    # Scenario B main program
-└── recordings/               # Local recording output; should not be committed
 ```
 
 ---
@@ -332,14 +314,6 @@ Main parameters are in `scripts/core/config.py`.
 | `_render_full()` | Six-panel monitor for Scenario A. |
 | `_render_compact()` | Four-panel monitor for Scenario B. |
 
-### 7.7 `scripts/core/recording.py`
-
-| Class / function | Purpose |
-| --- | --- |
-| `place_sumo_left_half()` | Move SUMO-GUI to the left half of the screen on Windows. |
-| `ScreenRecorder.start()` | Start desktop recording through ffmpeg `gdigrab`. |
-| `ScreenRecorder.stop()` | Stop ffmpeg gracefully so an interrupted run can still produce a video file. |
-| `prepare_visual_session()` | Arrange windows, start recording, and wait for preroll. |
 
 ### 7.8 `scripts/core/reset_db.py`
 
@@ -418,4 +392,5 @@ The latest database snapshot is shown below. After a new simulation run, the new
 | Total NOx | 413.17 g | 190.02 g |
 | Total PMx | 46.53 g | 46.08 g |
 
-If a metric is not collected or written to the database, it should not be treated as a measured result in reports, papers, or dashboards.
+
+
