@@ -20,11 +20,8 @@ def ensure_cruising_logs_environment_columns(cursor):
     cursor.execute(
         """ALTER TABLE Cruising_Logs
            ADD COLUMN IF NOT EXISTS total_co2_mg FLOAT NOT NULL DEFAULT 0,
-           ADD COLUMN IF NOT EXISTS total_co_mg FLOAT NOT NULL DEFAULT 0,
-           ADD COLUMN IF NOT EXISTS total_hc_mg FLOAT NOT NULL DEFAULT 0,
            ADD COLUMN IF NOT EXISTS total_nox_mg FLOAT NOT NULL DEFAULT 0,
-           ADD COLUMN IF NOT EXISTS total_pmx_mg FLOAT NOT NULL DEFAULT 0,
-           ADD COLUMN IF NOT EXISTS avg_noise_db FLOAT NOT NULL DEFAULT 0"""
+           ADD COLUMN IF NOT EXISTS total_pmx_mg FLOAT NOT NULL DEFAULT 0"""
     )
 
 
@@ -37,18 +34,15 @@ def log_cruise(
     total_fuel,
     spot_id,
     total_co2=0.0,
-    total_co=0.0,
-    total_hc=0.0,
     total_nox=0.0,
     total_pmx=0.0,
-    avg_noise=0.0,
 ):
     cursor.execute(
         """INSERT INTO Cruising_Logs
            (vehicle_id, scenario, search_time_sec, cruising_distance_m,
-            total_fuel_mg, total_co2_mg, total_co_mg, total_hc_mg,
-            total_nox_mg, total_pmx_mg, avg_noise_db, final_spot_id)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            total_fuel_mg, total_co2_mg, total_nox_mg, total_pmx_mg,
+            final_spot_id)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
         (
             vid,
             scenario,
@@ -56,11 +50,8 @@ def log_cruise(
             cruise_dist,
             total_fuel,
             total_co2,
-            total_co,
-            total_hc,
             total_nox,
             total_pmx,
-            avg_noise,
             spot_id,
         ),
     )

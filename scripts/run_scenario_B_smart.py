@@ -1,7 +1,5 @@
 """场景 B —— 智能预订 + 动态定价模式。"""
 
-import math
-
 import traci
 import traci.constants as tc
 import traci.exceptions
@@ -13,8 +11,7 @@ from core.config import (
     SIMULATION_DURATION_LIMIT,
     STREET_SPOT_THRESHOLD,
     TOTAL_VEHICLES_TARGET,
-    WEIGHT_DISTANCE,
-    WEIGHT_PRICE,
+    UNIT_DIST_COST,
     sumoCmd,
 )
 from core.connection import get_db_connection
@@ -47,17 +44,31 @@ def _load_spots(cursor):
             "base_price": float(row[3]),
             "current_price": float(row[4]),
             "pos": None,
+            "lane_index": 0,
+            "stop_pos": None,
         }
     return spots
 
 
 def _compute_positions(all_spots):
     """获取所有停车位的物理坐标（需在 traci.start 之后调用）。"""
-    for data in all_spots.values():
+    for sid, data in all_spots.items():
         try:
-            data["pos"] = traci.lane.getShape(f"{data['edge']}_0")[0]
+            lane_id = traci.parkingarea.getLaneID(sid)
+            start_pos = traci.parkingarea.getStartPos(sid)
+            end_pos = traci.parkingarea.getEndPos(sid)
+            lane_index = int(lane_id.rsplit("_", 1)[1])
+            data["lane_index"] = lane_index
+            data["stop_pos"] = (start_pos + end_pos) / 2.0
+            data["pos"] = traci.lane.getShape(lane_id)[0]
         except traci.exceptions.TraCIException:
-            data["pos"] = (0, 0)
+            lane_id = f"{data['edge']}_0"
+            try:
+                data["stop_pos"] = traci.lane.getLength(lane_id) / 2.0
+                data["pos"] = traci.lane.getShape(lane_id)[0]
+            except traci.exceptions.TraCIException:
+                data["stop_pos"] = 0.0
+                data["pos"] = (0, 0)
 
 
 # ---------------------------------------------------------------------------
@@ -109,21 +120,48 @@ def _compute_pricing(all_spots, pricing_index):
 # ---------------------------------------------------------------------------
 # 车辆分配
 # ---------------------------------------------------------------------------
-def _find_best_spot(vehicle_pos, all_spots):
-    """基于距离+价格综合成本选择最优车位。"""
+def _restore_route(vid, route):
+    """恢复车辆原始路径，避免候选距离测算留下临时目标。"""
+    if not route:
+        return
+    try:
+        route_index = max(0, traci.vehicle.getRouteIndex(vid))
+        remaining_route = list(route[route_index:])
+        if remaining_route:
+            traci.vehicle.setRoute(vid, remaining_route)
+    except traci.exceptions.TraCIException:
+        pass
+
+
+def _find_best_spot(vid, all_spots):
+    """按统一货币成本选择最优车位。"""
     available = [sid for sid, d in all_spots.items() if d["booked"] < d["capacity"]]
     if not available:
         return None
 
+    original_route = traci.vehicle.getRoute(vid)
     best = None
     min_cost = float("inf")
     for sid in available:
         sp = all_spots[sid]
-        dist = math.hypot(vehicle_pos[0] - sp["pos"][0], vehicle_pos[1] - sp["pos"][1])
-        cost = (dist * WEIGHT_DISTANCE) + (sp["current_price"] * WEIGHT_PRICE)
+        try:
+            traci.vehicle.changeTarget(vid, sp["edge"])
+            dist = traci.vehicle.getDrivingDistance(
+                vid, sp["edge"], sp["stop_pos"], sp["lane_index"]
+            )
+        except traci.exceptions.TraCIException:
+            continue
+
+        if dist < 0:
+            continue
+
+        cost = sp["current_price"] + (dist * UNIT_DIST_COST)
         if cost < min_cost:
             min_cost = cost
             best = sid
+
+    if best is None:
+        _restore_route(vid, original_route)
     return best
 
 
@@ -166,11 +204,8 @@ def _settle(vid, stats, current_time, spot_id, cursor, conn):
         env["total_fuel"],
         spot_id,
         env["total_co2"],
-        env["total_co"],
-        env["total_hc"],
         env["total_nox"],
         env["total_pmx"],
-        env["avg_noise"],
     )
     conn.commit()
 
@@ -182,11 +217,10 @@ def _handle_departed(departed, all_spots, veh_stats, active_driving, current_tim
     for vid in departed:
         try:
             traci.vehicle.setShapeClass(vid, "passenger")
-            spawn_pos = traci.vehicle.getPosition(vid)
         except traci.exceptions.TraCIException:
             continue
 
-        spot_id = _find_best_spot(spawn_pos, all_spots)
+        spot_id = _find_best_spot(vid, all_spots)
         if spot_id is None:
             traci.simulation.writeMessage(f"⚠️ [系统爆满] 车辆 {vid} 无法分配到车位！")
             continue
@@ -339,15 +373,14 @@ def run_smart_booking_with_pricing():
         if pricing_dirty:
             _compute_pricing(all_spots, pricing_index)
         sync_spots_priced(cursor, conn, all_spots)
-        total_processed = completed + teleported
         log_run_summary(
             cursor,
             conn,
             SCENARIO_B_NAME,
             current_time,
-            total_processed,
+            TOTAL_VEHICLES_TARGET,
             completed,
-            teleported,
+            max(0, TOTAL_VEHICLES_TARGET - completed),
         )
         print(f"🏁 场景 B 结束。t={current_time:.0f}s 完成={completed} 丢失={teleported}")
     finally:

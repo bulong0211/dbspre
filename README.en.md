@@ -24,7 +24,7 @@ The project includes two comparable scenarios:
 | Scenario | Entry script | Core logic |
 | --- | --- | --- |
 | Scenario A: baseline blind search | `scripts/run_scenario_A_baseline.py` | Vehicles do not know the global parking state. They scan only visible roadside spots and keep rerouting when no spot is found. |
-| Scenario B: smart reservation and dynamic pricing | `scripts/run_scenario_B_smart.py` | Vehicles query the database at departure, choose an available spot by distance and current price, reserve it, and navigate to it. |
+| Scenario B: smart reservation and dynamic pricing | `scripts/run_scenario_B_smart.py` | Vehicles query the database at departure, choose an available spot by route-distance cost and current price, reserve it, and navigate to it. |
 
 In the current experiments, both scenarios complete all vehicle parking within the 2-hour simulation limit, so both parking rates are 100%. The parking rate is therefore reported as a fact, while the primary comparison metric is the global simulation time required to complete parking for all vehicles.
 
@@ -273,8 +273,7 @@ Main parameters are in `scripts/core/config.py`.
 | `TARGET_TIMEOUT` | `120` | Timeout after locking a target spot. |
 | `PLOTTER_UPDATE_INTERVAL` | `5` | matplotlib refresh interval. |
 | `DB_SYNC_INTERVAL` | `60` | Database sync interval. |
-| `WEIGHT_DISTANCE` | `1.0` | Distance weight in Scenario B cost function. |
-| `WEIGHT_PRICE` | `100.0` | Price weight in Scenario B cost function. |
+| `UNIT_DIST_COST` | `0.0025` | Monetary cost per meter of route distance in Scenario B, based on fuel cost and driver time cost. |
 
 ---
 
@@ -375,7 +374,7 @@ Main parameters are in `scripts/core/config.py`.
 | `_build_pricing_index()` | Precompute curbside street groups and off-street lot indexes to avoid repeated aggregation. |
 | `_price_from_rate()` | Return base, 1.5x, or 2x price from an occupancy rate. |
 | `_compute_pricing()` | Update prices by occupancy: 1.5x above 70%, 2x above 90%. |
-| `_find_best_spot()` | Select the minimum-cost spot using distance and price. |
+| `_find_best_spot()` | Select the spot with the lowest unified monetary cost, `current_price + driving_distance * UNIT_DIST_COST`. |
 | `_assign_vehicle()` | Set the route target, parking stop command, and initial vehicle state. |
 | `_settle()` | Write vehicle result to `Cruising_Logs`. |
 | `_handle_departed()` | Assign spots to newly departed vehicles. |

@@ -134,11 +134,8 @@ def _settle(vid, stats, current_time, current_dist, spot_id, cursor, conn):
         env["total_fuel"],
         spot_id,
         env["total_co2"],
-        env["total_co"],
-        env["total_hc"],
         env["total_nox"],
         env["total_pmx"],
-        env["avg_noise"],
     )
     conn.commit()
 
@@ -157,11 +154,8 @@ def _settle_lost(vid, stats, current_time, cursor, conn):
         env["total_fuel"],
         None,
         env["total_co2"],
-        env["total_co"],
-        env["total_hc"],
         env["total_nox"],
         env["total_pmx"],
-        env["avg_noise"],
     )
     conn.commit()
 
@@ -486,15 +480,14 @@ def run_baseline():
                 _settle(vid, stats, current_time, curr_dist, None, cursor, conn)
             conn.commit()
 
-        total_processed = completed + teleported
         log_run_summary(
             cursor,
             conn,
             SCENARIO_A_NAME,
             current_time,
-            total_processed,
+            TOTAL_VEHICLES_TARGET,
             completed,
-            teleported,
+            max(0, TOTAL_VEHICLES_TARGET - completed),
         )
         print(f"🏁 场景 A 结束。t={current_time:.0f}s 完成={completed} 丢失={teleported}")
     finally:

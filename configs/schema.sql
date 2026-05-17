@@ -1,859 +1,6854 @@
 DROP TABLE IF EXISTS Parking_Spots;
+
 DROP TABLE IF EXISTS Cruising_Logs;
+
 DROP TABLE IF EXISTS Simulation_Runs;
+
 DROP TYPE IF EXISTS spot_category;
+
 CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
-CREATE TABLE Parking_Spots (spot_id VARCHAR(50) PRIMARY KEY, edge_id VARCHAR(50) NOT NULL, spot_type spot_category NOT NULL, capacity INT NOT NULL, occupied INT DEFAULT 0, base_price DECIMAL(5,2) NOT NULL, current_price DECIMAL(5,2) NOT NULL);
-CREATE TABLE Cruising_Logs (log_id SERIAL PRIMARY KEY, vehicle_id VARCHAR(50) NOT NULL, scenario VARCHAR(20) NOT NULL, search_time_sec FLOAT NOT NULL, cruising_distance_m FLOAT NOT NULL, final_spot_id VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, total_fuel_mg FLOAT NOT NULL, total_co2_mg FLOAT NOT NULL DEFAULT 0, total_co_mg FLOAT NOT NULL DEFAULT 0, total_hc_mg FLOAT NOT NULL DEFAULT 0, total_nox_mg FLOAT NOT NULL DEFAULT 0, total_pmx_mg FLOAT NOT NULL DEFAULT 0, avg_noise_db FLOAT NOT NULL DEFAULT 0);
-CREATE TABLE Simulation_Runs (run_id SERIAL PRIMARY KEY, scenario VARCHAR(20) NOT NULL, completion_time_sec FLOAT NOT NULL, total_vehicles INT NOT NULL, parked_vehicles INT NOT NULL, failed_vehicles INT NOT NULL, parking_rate FLOAT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
-INSERT INTO Parking_Spots (spot_id, edge_id, spot_type, capacity, base_price, current_price) VALUES
-    ('off_street_0', 'E5E6', 'off-street', 38, 8.00, 8.00),
-    ('off_street_1', 'O1O0', 'off-street', 38, 8.00, 8.00),
-    ('off_street_2', 'K4L4', 'off-street', 38, 8.00, 8.00),
-    ('off_street_3', 'F14E14', 'off-street', 38, 8.00, 8.00),
-    ('off_street_4', 'F8F9', 'off-street', 38, 8.00, 8.00),
-    ('off_street_5', 'E7D7', 'off-street', 38, 8.00, 8.00),
-    ('off_street_6', 'N11M11', 'off-street', 38, 8.00, 8.00),
-    ('off_street_7', 'G13H13', 'off-street', 38, 8.00, 8.00),
-    ('off_street_8', 'H8I8', 'off-street', 38, 8.00, 8.00),
-    ('off_street_9', 'H14H13', 'off-street', 38, 8.00, 8.00),
-    ('off_street_10', 'M6L6', 'off-street', 38, 8.00, 8.00),
-    ('off_street_11', 'G2G3', 'off-street', 38, 8.00, 8.00),
-    ('off_street_12', 'I4H4', 'off-street', 38, 8.00, 8.00),
-    ('off_street_13', 'D5C5', 'off-street', 38, 8.00, 8.00),
-    ('off_street_14', 'N14M14', 'off-street', 38, 8.00, 8.00),
-    ('off_street_15', 'O11N11', 'off-street', 38, 8.00, 8.00),
-    ('off_street_16', 'G14H14', 'off-street', 38, 8.00, 8.00),
-    ('off_street_17', 'I8J8', 'off-street', 38, 8.00, 8.00),
-    ('off_street_18', 'M6N6', 'off-street', 38, 8.00, 8.00),
-    ('off_street_19', 'F12F11', 'off-street', 38, 8.00, 8.00),
-    ('off_street_20', 'N2N1', 'off-street', 38, 8.00, 8.00),
-    ('off_street_21', 'G4G5', 'off-street', 38, 8.00, 8.00),
-    ('off_street_22', 'B4A4', 'off-street', 38, 8.00, 8.00),
-    ('off_street_23', 'N8N7', 'off-street', 38, 8.00, 8.00),
-    ('off_street_24', 'L0L1', 'off-street', 38, 8.00, 8.00),
-    ('off_street_25', 'J13I13', 'off-street', 38, 8.00, 8.00),
-    ('off_street_26', 'M8N8', 'off-street', 38, 8.00, 8.00),
-    ('off_street_27', 'K6K7', 'off-street', 38, 8.00, 8.00),
-    ('off_street_28', 'O2O3', 'off-street', 38, 8.00, 8.00),
-    ('off_street_29', 'E2D2', 'off-street', 38, 8.00, 8.00),
-    ('off_street_30', 'H6H7', 'off-street', 38, 8.00, 8.00),
-    ('off_street_31', 'G2H2', 'off-street', 38, 8.00, 8.00),
-    ('off_street_32', 'F3G3', 'off-street', 38, 8.00, 8.00),
-    ('off_street_33', 'E11D11', 'off-street', 38, 8.00, 8.00),
-    ('off_street_34', 'H2H3', 'off-street', 38, 8.00, 8.00),
-    ('off_street_35', 'J0J1', 'off-street', 38, 8.00, 8.00),
-    ('off_street_36', 'A10A11', 'off-street', 38, 8.00, 8.00),
-    ('off_street_37', 'E10E9', 'off-street', 38, 8.00, 8.00),
-    ('off_street_38', 'N5N4', 'off-street', 38, 8.00, 8.00),
-    ('off_street_39', 'I9I10', 'off-street', 38, 8.00, 8.00),
-    ('off_street_40', 'I2I3', 'off-street', 38, 8.00, 8.00),
-    ('off_street_41', 'D12D13', 'off-street', 38, 8.00, 8.00),
-    ('off_street_42', 'B2A2', 'off-street', 38, 8.00, 8.00),
-    ('off_street_43', 'O6O5', 'off-street', 38, 8.00, 8.00),
-    ('off_street_44', 'H13H12', 'off-street', 38, 8.00, 8.00),
-    ('off_street_45', 'J8I8', 'off-street', 38, 8.00, 8.00),
-    ('off_street_46', 'I2I1', 'off-street', 38, 8.00, 8.00),
-    ('off_street_47', 'F6F7', 'off-street', 38, 8.00, 8.00),
-    ('off_street_48', 'M12M13', 'off-street', 38, 8.00, 8.00),
-    ('off_street_49', 'A7A8', 'off-street', 38, 8.00, 8.00),
-    ('on_street_0', 'D8E8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_1', 'L3M3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_2', 'I10H10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_3', 'J14I14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_4', 'D7C7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_5', 'N0O0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_6', 'L9K9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_7', 'I1I2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_8', 'H9G9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_9', 'E10D10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_10', 'J2K2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_11', 'I12I13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_12', 'D4D3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_13', 'C7D7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_14', 'B5B6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_15', 'M8M9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_16', 'K11K10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_17', 'B7B8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_18', 'D5D4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_19', 'F14G14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_20', 'I6H6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_21', 'E9E10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_22', 'B11B12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_23', 'L3L2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_24', 'E6E7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_25', 'E14E13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_26', 'I12J12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_27', 'D9D8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_28', 'E1F1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_29', 'F7F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_30', 'F8E8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_31', 'C1C2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_32', 'A12B12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_33', 'A2B2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_34', 'O7O6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_35', 'K14L14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_36', 'D11D10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_37', 'O10O11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_38', 'N0O0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_39', 'O1N1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_40', 'L14K14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_41', 'I12H12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_42', 'N9O9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_43', 'M2N2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_44', 'J6I6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_45', 'B0A0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_46', 'E6D6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_47', 'H9I9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_48', 'H12I12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_49', 'E2F2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_50', 'B8B9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_51', 'I0I1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_52', 'L6L5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_53', 'M12N12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_54', 'D5D6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_55', 'E12D12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_56', 'L13L14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_57', 'G12G11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_58', 'B5B6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_59', 'D3E3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_60', 'B1B2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_61', 'A10B10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_62', 'K13J13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_63', 'E5D5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_64', 'O2N2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_65', 'B13A13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_66', 'I4I5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_67', 'B7B6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_68', 'I13I12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_69', 'B7B8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_70', 'H5G5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_71', 'F11E11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_72', 'O1N1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_73', 'O3O2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_74', 'D7E7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_75', 'C11B11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_76', 'G10F10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_77', 'H4G4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_78', 'H0I0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_79', 'C1D1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_80', 'K1J1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_81', 'K12K13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_82', 'M5M6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_83', 'G11G10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_84', 'B13A13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_85', 'J5K5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_86', 'N10M10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_87', 'C1D1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_88', 'H13H14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_89', 'L2L3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_90', 'L0K0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_91', 'E5D5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_92', 'A12B12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_93', 'B10B11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_94', 'D8E8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_95', 'H7H8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_96', 'C11D11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_97', 'M10L10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_98', 'F9F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_99', 'D2D1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_100', 'H2H1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_101', 'G0H0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_102', 'A6A5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_103', 'M7L7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_104', 'H7H8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_105', 'L12L13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_106', 'O13O12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_107', 'H9I9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_108', 'L10M10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_109', 'K3K2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_110', 'K8J8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_111', 'E0E1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_112', 'A3B3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_113', 'J3J4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_114', 'K12J12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_115', 'L12L11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_116', 'F1G1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_117', 'A3A2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_118', 'K10J10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_119', 'L4L5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_120', 'N12N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_121', 'G7F7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_122', 'F10E10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_123', 'G7F7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_124', 'D2E2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_125', 'C14B14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_126', 'H2G2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_127', 'J7J8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_128', 'H9H10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_129', 'N11N12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_130', 'G0G1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_131', 'I14I13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_132', 'E8F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_133', 'E12F12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_134', 'N12N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_135', 'M13N13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_136', 'K13K12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_137', 'J12I12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_138', 'D5D6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_139', 'L7L8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_140', 'G5G6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_141', 'F0G0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_142', 'I5J5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_143', 'M14M13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_144', 'H11G11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_145', 'M5M4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_146', 'M14N14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_147', 'F7F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_148', 'K12K11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_149', 'F14F13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_150', 'N10N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_151', 'C6C5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_152', 'L2K2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_153', 'F7F6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_154', 'N8O8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_155', 'N4M4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_156', 'B6C6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_157', 'G2F2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_158', 'E3E4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_159', 'K3K4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_160', 'C12C11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_161', 'I7J7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_162', 'H10H9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_163', 'K2J2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_164', 'D3D2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_165', 'L1L2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_166', 'L1M1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_167', 'A5B5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_168', 'A6A5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_169', 'C13D13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_170', 'E1D1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_171', 'G13G14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_172', 'N8M8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_173', 'F13G13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_174', 'B1C1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_175', 'B5A5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_176', 'G12G13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_177', 'F3E3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_178', 'E7E6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_179', 'L3L4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_180', 'B14A14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_181', 'F11E11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_182', 'E1D1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_183', 'M11N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_184', 'L1M1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_185', 'K1K0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_186', 'B9B8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_187', 'I1I2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_188', 'C14B14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_189', 'J2K2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_190', 'M1N1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_191', 'J6I6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_192', 'K7J7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_193', 'L6K6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_194', 'A6A7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_195', 'L8K8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_196', 'A11A10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_197', 'H12G12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_198', 'K12K11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_199', 'C6B6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_200', 'A4B4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_201', 'F7F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_202', 'J8K8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_203', 'N13N12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_204', 'I2H2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_205', 'C12C11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_206', 'H1I1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_207', 'K14J14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_208', 'J13J12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_209', 'J4J3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_210', 'F5E5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_211', 'D10D9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_212', 'L3K3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_213', 'F9F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_214', 'O0N0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_215', 'H4H5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_216', 'H14I14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_217', 'B4B3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_218', 'F7F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_219', 'K6K5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_220', 'M3M2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_221', 'I11I12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_222', 'E13F13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_223', 'O12N12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_224', 'H5H4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_225', 'N13N14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_226', 'H6I6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_227', 'M2M1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_228', 'M8L8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_229', 'O7O6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_230', 'J9J10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_231', 'O9O10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_232', 'L1L2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_233', 'C8B8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_234', 'I1J1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_235', 'A8A9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_236', 'L7L6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_237', 'F1E1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_238', 'M14L14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_239', 'E2E1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_240', 'B11B10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_241', 'L6L7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_242', 'H2I2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_243', 'K10J10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_244', 'E11E12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_245', 'C2C3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_246', 'G1F1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_247', 'N13N14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_248', 'O10O9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_249', 'K10L10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_250', 'C13C14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_251', 'M7M6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_252', 'G5G6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_253', 'C10C9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_254', 'L2L3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_255', 'M4L4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_256', 'C1D1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_257', 'H4H5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_258', 'J13J12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_259', 'E8E7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_260', 'N0O0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_261', 'N12N13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_262', 'O11O12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_263', 'O7O8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_264', 'G9H9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_265', 'E7E8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_266', 'G0F0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_267', 'J0I0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_268', 'B12A12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_269', 'M10N10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_270', 'E7E8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_271', 'F8G8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_272', 'N0O0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_273', 'B13B12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_274', 'D9D10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_275', 'L14M14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_276', 'N0M0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_277', 'E0D0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_278', 'B12C12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_279', 'D13D12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_280', 'C11C12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_281', 'K10K9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_282', 'E1F1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_283', 'L1M1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_284', 'J0I0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_285', 'G6H6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_286', 'J4J3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_287', 'E1E0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_288', 'N9O9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_289', 'J6J7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_290', 'D8D7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_291', 'L14M14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_292', 'D4D5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_293', 'B8C8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_294', 'H8H9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_295', 'D9D10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_296', 'F7G7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_297', 'M8M7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_298', 'E13F13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_299', 'F1G1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_300', 'E8E7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_301', 'L2L3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_302', 'A14B14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_303', 'C1C0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_304', 'C0D0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_305', 'E11E10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_306', 'D10D9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_307', 'J10I10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_308', 'D14D13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_309', 'K11J11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_310', 'L2L1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_311', 'B6B5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_312', 'E8E7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_313', 'I5I4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_314', 'D7C7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_315', 'N12N13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_316', 'M10N10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_317', 'N14O14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_318', 'C9C8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_319', 'A1B1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_320', 'K9K8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_321', 'B2C2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_322', 'B10A10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_323', 'M12L12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_324', 'O4O5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_325', 'H12I12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_326', 'C3D3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_327', 'O8O7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_328', 'B1A1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_329', 'B13A13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_330', 'B10C10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_331', 'F9G9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_332', 'A10A9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_333', 'L1K1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_334', 'M7N7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_335', 'O9N9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_336', 'D3D4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_337', 'K6L6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_338', 'D2E2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_339', 'O1N1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_340', 'A12B12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_341', 'M2M3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_342', 'J3I3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_343', 'C4B4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_344', 'E8F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_345', 'F1G1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_346', 'D10C10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_347', 'O8O9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_348', 'L13M13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_349', 'N10N9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_350', 'G12G11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_351', 'D13D14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_352', 'A4B4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_353', 'H4H3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_354', 'O13N13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_355', 'D10E10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_356', 'B4B3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_357', 'F5F4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_358', 'A9B9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_359', 'G4G3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_360', 'G4G3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_361', 'M1N1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_362', 'N12N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_363', 'C2C1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_364', 'D9C9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_365', 'K12L12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_366', 'G7H7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_367', 'B3B4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_368', 'E3E4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_369', 'G12G13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_370', 'A9A8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_371', 'N6M6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_372', 'L5L4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_373', 'I9H9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_374', 'I11I12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_375', 'C13C12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_376', 'C2C3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_377', 'G4F4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_378', 'D8C8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_379', 'I14H14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_380', 'M9N9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_381', 'B8B9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_382', 'F8G8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_383', 'J4J3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_384', 'O3O4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_385', 'O3O2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_386', 'D8D9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_387', 'F13F14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_388', 'C9D9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_389', 'F4F5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_390', 'K2J2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_391', 'C6D6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_392', 'K12J12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_393', 'K12K11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_394', 'H12I12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_395', 'N7O7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_396', 'G6G5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_397', 'O9O10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_398', 'E10D10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_399', 'D1D2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_400', 'J3J4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_401', 'M8M7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_402', 'O9O8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_403', 'I8I7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_404', 'C7D7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_405', 'O0N0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_406', 'B5B4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_407', 'J2J3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_408', 'J13J14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_409', 'G10G9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_410', 'I12I11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_411', 'B5C5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_412', 'C0C1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_413', 'C8C9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_414', 'J9I9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_415', 'C8C7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_416', 'I3H3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_417', 'G5G4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_418', 'J9J10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_419', 'F14G14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_420', 'I3J3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_421', 'L12K12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_422', 'K14J14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_423', 'L8L9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_424', 'K2J2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_425', 'J1K1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_426', 'G0F0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_427', 'I10I9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_428', 'A1B1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_429', 'G8G7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_430', 'B8A8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_431', 'I13J13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_432', 'E11F11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_433', 'K11L11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_434', 'K1K2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_435', 'K5K6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_436', 'H9H10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_437', 'D11E11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_438', 'K10J10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_439', 'D6C6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_440', 'B0C0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_441', 'C7C6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_442', 'C13C14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_443', 'D10D11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_444', 'H12H13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_445', 'F12F13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_446', 'B4B5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_447', 'I1J1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_448', 'F4G4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_449', 'A14B14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_450', 'D12C12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_451', 'C1D1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_452', 'A8A7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_453', 'C5B5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_454', 'H6I6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_455', 'K14K13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_456', 'L7M7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_457', 'N1N0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_458', 'A2B2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_459', 'I4J4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_460', 'L11K11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_461', 'B0B1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_462', 'E8D8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_463', 'F7F6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_464', 'M6M7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_465', 'B6C6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_466', 'E6E5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_467', 'M5N5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_468', 'J11I11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_469', 'J4J3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_470', 'O14N14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_471', 'F8E8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_472', 'A8A7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_473', 'L7K7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_474', 'C2D2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_475', 'D3E3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_476', 'F2F3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_477', 'B2C2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_478', 'N12N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_479', 'H6I6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_480', 'N10N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_481', 'M4M5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_482', 'O13O14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_483', 'G4G3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_484', 'G7G6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_485', 'O13O14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_486', 'G4F4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_487', 'C9C10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_488', 'E7F7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_489', 'O9N9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_490', 'E6F6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_491', 'C13C14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_492', 'J11J10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_493', 'C3C2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_494', 'J6K6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_495', 'F0E0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_496', 'K10J10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_497', 'I9J9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_498', 'G0H0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_499', 'L8M8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_500', 'C7C6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_501', 'N8N9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_502', 'N0O0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_503', 'L3L2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_504', 'K12J12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_505', 'F1F0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_506', 'D5D6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_507', 'G13F13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_508', 'C5B5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_509', 'D8D7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_510', 'M13M14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_511', 'M2L2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_512', 'L13L12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_513', 'A13A14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_514', 'A2A1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_515', 'H9H8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_516', 'H10G10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_517', 'I5I6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_518', 'H9H8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_519', 'K11K10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_520', 'C7B7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_521', 'M4N4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_522', 'C4D4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_523', 'A10A9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_524', 'O3O2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_525', 'M2N2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_526', 'N10O10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_527', 'K11K10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_528', 'F9F10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_529', 'J4K4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_530', 'F11F10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_531', 'K0K1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_532', 'K3K4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_533', 'E3F3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_534', 'F11G11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_535', 'B1A1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_536', 'M9M8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_537', 'K7L7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_538', 'F10E10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_539', 'H5I5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_540', 'M8M7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_541', 'F7G7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_542', 'J4J5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_543', 'J3K3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_544', 'F6F5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_545', 'F9F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_546', 'C9B9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_547', 'H10I10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_548', 'H10H9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_549', 'M9M8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_550', 'N13N12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_551', 'B6B5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_552', 'F9F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_553', 'B2C2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_554', 'A6A5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_555', 'J12I12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_556', 'K10J10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_557', 'C6D6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_558', 'L12K12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_559', 'O4N4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_560', 'M2N2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_561', 'I4I5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_562', 'K8K9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_563', 'I12I13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_564', 'B12B13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_565', 'L8K8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_566', 'O9O8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_567', 'B10B9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_568', 'B13B12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_569', 'I0I1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_570', 'B2C2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_571', 'L2M2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_572', 'E2E1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_573', 'H4I4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_574', 'B6C6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_575', 'D5E5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_576', 'D0D1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_577', 'B2C2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_578', 'C3D3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_579', 'J11J10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_580', 'I5I4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_581', 'A5A4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_582', 'N13N12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_583', 'B8B7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_584', 'I5J5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_585', 'C9D9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_586', 'O11O10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_587', 'O10N10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_588', 'I12J12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_589', 'M3M2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_590', 'E1E2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_591', 'F10E10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_592', 'H8H9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_593', 'M1M2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_594', 'J3K3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_595', 'C9B9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_596', 'J10I10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_597', 'N8O8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_598', 'H9G9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_599', 'O3O2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_600', 'E5D5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_601', 'H2G2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_602', 'K7J7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_603', 'K0K1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_604', 'G4F4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_605', 'F11F10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_606', 'B11B10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_607', 'F11G11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_608', 'B7C7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_609', 'H10H9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_610', 'A13A12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_611', 'L12K12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_612', 'N13O13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_613', 'E11E10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_614', 'E1E0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_615', 'M5M6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_616', 'I10J10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_617', 'H12H13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_618', 'N1M1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_619', 'M14L14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_620', 'N8M8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_621', 'E8D8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_622', 'G12G11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_623', 'G4G3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_624', 'H1G1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_625', 'A1B1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_626', 'H13G13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_627', 'E13D13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_628', 'M11N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_629', 'O11O10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_630', 'A12B12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_631', 'F12E12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_632', 'I6I5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_633', 'K8K9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_634', 'C5B5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_635', 'A9A8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_636', 'J5I5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_637', 'L13L14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_638', 'G5H5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_639', 'D1D0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_640', 'L14K14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_641', 'E0F0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_642', 'M13N13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_643', 'I12J12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_644', 'G6F6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_645', 'F9F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_646', 'F8E8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_647', 'E4E5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_648', 'C3D3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_649', 'F5F4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_650', 'E14E13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_651', 'L8L7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_652', 'L4L3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_653', 'A11A10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_654', 'M3L3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_655', 'G1G0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_656', 'I8I9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_657', 'L6K6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_658', 'H2I2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_659', 'C7D7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_660', 'K11K10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_661', 'I14H14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_662', 'E13E14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_663', 'H0I0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_664', 'M6M5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_665', 'M1N1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_666', 'O5O6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_667', 'E12E11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_668', 'N6N7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_669', 'D3E3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_670', 'H14G14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_671', 'N0O0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_672', 'H12H11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_673', 'B10A10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_674', 'K14L14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_675', 'M4N4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_676', 'M3M4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_677', 'L8K8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_678', 'O13N13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_679', 'F7F6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_680', 'C14B14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_681', 'B1B2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_682', 'K11L11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_683', 'M10N10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_684', 'C10C11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_685', 'D0D1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_686', 'A2A1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_687', 'G12G13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_688', 'C0C1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_689', 'H12I12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_690', 'N7M7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_691', 'J7J8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_692', 'I7J7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_693', 'H11H12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_694', 'I7I8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_695', 'A10B10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_696', 'F3F4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_697', 'O7O8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_698', 'O9O10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_699', 'A1B1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_700', 'N12N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_701', 'G6F6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_702', 'C2B2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_703', 'I5I6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_704', 'B6A6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_705', 'L1M1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_706', 'D4D5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_707', 'C7C6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_708', 'H8G8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_709', 'I6I5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_710', 'C4D4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_711', 'M11N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_712', 'I7I8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_713', 'C1C2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_714', 'F7F6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_715', 'C2C3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_716', 'J3J4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_717', 'G11G12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_718', 'J5J4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_719', 'G0G1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_720', 'O0O1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_721', 'H5G5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_722', 'E0F0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_723', 'A3B3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_724', 'F7F6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_725', 'N1N2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_726', 'M6M7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_727', 'G6F6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_728', 'F13F12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_729', 'N4N5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_730', 'F4F3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_731', 'D12D11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_732', 'N6O6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_733', 'I14J14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_734', 'G11H11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_735', 'B8A8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_736', 'F2E2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_737', 'D6E6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_738', 'B0A0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_739', 'H9H10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_740', 'L8K8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_741', 'B3C3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_742', 'C1D1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_743', 'E5F5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_744', 'O11O10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_745', 'K4K5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_746', 'M8M7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_747', 'L5L4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_748', 'C9C8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_749', 'F9F8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_750', 'L1L2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_751', 'G5G6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_752', 'J9K9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_753', 'H5I5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_754', 'J7J6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_755', 'M1N1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_756', 'E12D12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_757', 'M3M2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_758', 'E13E12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_759', 'M9L9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_760', 'N4O4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_761', 'K9J9', 'on-street', 1, 5.00, 5.00),
-    ('on_street_762', 'I12H12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_763', 'I14I13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_764', 'N12N11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_765', 'M0L0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_766', 'A6A7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_767', 'K1L1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_768', 'K4J4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_769', 'H11G11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_770', 'L4L5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_771', 'F5F4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_772', 'F3E3', 'on-street', 1, 5.00, 5.00),
-    ('on_street_773', 'G6G7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_774', 'G3G2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_775', 'N1M1', 'on-street', 1, 5.00, 5.00),
-    ('on_street_776', 'D4D5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_777', 'A13B13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_778', 'J7K7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_779', 'H5I5', 'on-street', 1, 5.00, 5.00),
-    ('on_street_780', 'L5L4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_781', 'J10J11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_782', 'D11E11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_783', 'B9B10', 'on-street', 1, 5.00, 5.00),
-    ('on_street_784', 'D12E12', 'on-street', 1, 5.00, 5.00),
-    ('on_street_785', 'J12J11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_786', 'K9K8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_787', 'B7C7', 'on-street', 1, 5.00, 5.00),
-    ('on_street_788', 'J13K13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_789', 'D11E11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_790', 'H13I13', 'on-street', 1, 5.00, 5.00),
-    ('on_street_791', 'C4D4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_792', 'K4J4', 'on-street', 1, 5.00, 5.00),
-    ('on_street_793', 'L0K0', 'on-street', 1, 5.00, 5.00),
-    ('on_street_794', 'L14M14', 'on-street', 1, 5.00, 5.00),
-    ('on_street_795', 'I6J6', 'on-street', 1, 5.00, 5.00),
-    ('on_street_796', 'D12D11', 'on-street', 1, 5.00, 5.00),
-    ('on_street_797', 'O9O8', 'on-street', 1, 5.00, 5.00),
-    ('on_street_798', 'F1F2', 'on-street', 1, 5.00, 5.00),
-    ('on_street_799', 'D0C0', 'on-street', 1, 5.00, 5.00);
+
+CREATE TABLE Parking_Spots (
+    spot_id VARCHAR(50) PRIMARY KEY,
+    edge_id VARCHAR(50) NOT NULL,
+    spot_type spot_category NOT NULL,
+    capacity INT NOT NULL,
+    occupied INT DEFAULT 0,
+    base_price DECIMAL(5, 2) NOT NULL,
+    current_price DECIMAL(5, 2) NOT NULL
+);
+
+CREATE TABLE Cruising_Logs (
+    log_id SERIAL PRIMARY KEY,
+    vehicle_id VARCHAR(50) NOT NULL,
+    scenario VARCHAR(20) NOT NULL,
+    search_time_sec FLOAT NOT NULL,
+    cruising_distance_m FLOAT NOT NULL,
+    final_spot_id VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_fuel_mg FLOAT NOT NULL,
+    total_co2_mg FLOAT NOT NULL DEFAULT 0,
+    total_nox_mg FLOAT NOT NULL DEFAULT 0,
+    total_pmx_mg FLOAT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE Simulation_Runs (
+    run_id SERIAL PRIMARY KEY,
+    scenario VARCHAR(20) NOT NULL,
+    completion_time_sec FLOAT NOT NULL,
+    total_vehicles INT NOT NULL,
+    parked_vehicles INT NOT NULL,
+    failed_vehicles INT NOT NULL,
+    parking_rate FLOAT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO
+    Parking_Spots (
+        spot_id,
+        edge_id,
+        spot_type,
+        capacity,
+        base_price,
+        current_price
+    )
+VALUES (
+        'off_street_0',
+        'E5E6',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_1',
+        'O1O0',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_2',
+        'K4L4',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_3',
+        'F14E14',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_4',
+        'F8F9',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_5',
+        'E7D7',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_6',
+        'N11M11',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_7',
+        'G13H13',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_8',
+        'H8I8',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_9',
+        'H14H13',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_10',
+        'M6L6',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_11',
+        'G2G3',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_12',
+        'I4H4',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_13',
+        'D5C5',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_14',
+        'N14M14',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_15',
+        'O11N11',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_16',
+        'G14H14',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_17',
+        'I8J8',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_18',
+        'M6N6',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_19',
+        'F12F11',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_20',
+        'N2N1',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_21',
+        'G4G5',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_22',
+        'B4A4',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_23',
+        'N8N7',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_24',
+        'L0L1',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_25',
+        'J13I13',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_26',
+        'M8N8',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_27',
+        'K6K7',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_28',
+        'O2O3',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_29',
+        'E2D2',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_30',
+        'H6H7',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_31',
+        'G2H2',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_32',
+        'F3G3',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_33',
+        'E11D11',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_34',
+        'H2H3',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_35',
+        'J0J1',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_36',
+        'A10A11',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_37',
+        'E10E9',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_38',
+        'N5N4',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_39',
+        'I9I10',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_40',
+        'I2I3',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_41',
+        'D12D13',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_42',
+        'B2A2',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_43',
+        'O6O5',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_44',
+        'H13H12',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_45',
+        'J8I8',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_46',
+        'I2I1',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_47',
+        'F6F7',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_48',
+        'M12M13',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'off_street_49',
+        'A7A8',
+        'off-street',
+        38,
+        8.00,
+        8.00
+    ),
+    (
+        'on_street_0',
+        'D8E8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_1',
+        'L3M3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_2',
+        'I10H10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_3',
+        'J14I14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_4',
+        'D7C7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_5',
+        'N0O0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_6',
+        'L9K9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_7',
+        'I1I2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_8',
+        'H9G9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_9',
+        'E10D10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_10',
+        'J2K2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_11',
+        'I12I13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_12',
+        'D4D3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_13',
+        'C7D7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_14',
+        'B5B6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_15',
+        'M8M9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_16',
+        'K11K10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_17',
+        'B7B8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_18',
+        'D5D4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_19',
+        'F14G14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_20',
+        'I6H6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_21',
+        'E9E10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_22',
+        'B11B12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_23',
+        'L3L2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_24',
+        'E6E7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_25',
+        'E14E13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_26',
+        'I12J12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_27',
+        'D9D8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_28',
+        'E1F1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_29',
+        'F7F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_30',
+        'F8E8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_31',
+        'C1C2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_32',
+        'A12B12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_33',
+        'A2B2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_34',
+        'O7O6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_35',
+        'K14L14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_36',
+        'D11D10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_37',
+        'O10O11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_38',
+        'N0O0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_39',
+        'O1N1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_40',
+        'L14K14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_41',
+        'I12H12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_42',
+        'N9O9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_43',
+        'M2N2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_44',
+        'J6I6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_45',
+        'B0A0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_46',
+        'E6D6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_47',
+        'H9I9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_48',
+        'H12I12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_49',
+        'E2F2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_50',
+        'B8B9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_51',
+        'I0I1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_52',
+        'L6L5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_53',
+        'M12N12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_54',
+        'D5D6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_55',
+        'E12D12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_56',
+        'L13L14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_57',
+        'G12G11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_58',
+        'B5B6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_59',
+        'D3E3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_60',
+        'B1B2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_61',
+        'A10B10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_62',
+        'K13J13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_63',
+        'E5D5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_64',
+        'O2N2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_65',
+        'B13A13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_66',
+        'I4I5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_67',
+        'B7B6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_68',
+        'I13I12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_69',
+        'B7B8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_70',
+        'H5G5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_71',
+        'F11E11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_72',
+        'O1N1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_73',
+        'O3O2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_74',
+        'D7E7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_75',
+        'C11B11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_76',
+        'G10F10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_77',
+        'H4G4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_78',
+        'H0I0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_79',
+        'C1D1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_80',
+        'K1J1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_81',
+        'K12K13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_82',
+        'M5M6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_83',
+        'G11G10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_84',
+        'B13A13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_85',
+        'J5K5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_86',
+        'N10M10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_87',
+        'C1D1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_88',
+        'H13H14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_89',
+        'L2L3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_90',
+        'L0K0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_91',
+        'E5D5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_92',
+        'A12B12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_93',
+        'B10B11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_94',
+        'D8E8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_95',
+        'H7H8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_96',
+        'C11D11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_97',
+        'M10L10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_98',
+        'F9F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_99',
+        'D2D1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_100',
+        'H2H1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_101',
+        'G0H0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_102',
+        'A6A5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_103',
+        'M7L7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_104',
+        'H7H8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_105',
+        'L12L13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_106',
+        'O13O12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_107',
+        'H9I9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_108',
+        'L10M10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_109',
+        'K3K2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_110',
+        'K8J8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_111',
+        'E0E1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_112',
+        'A3B3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_113',
+        'J3J4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_114',
+        'K12J12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_115',
+        'L12L11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_116',
+        'F1G1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_117',
+        'A3A2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_118',
+        'K10J10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_119',
+        'L4L5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_120',
+        'N12N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_121',
+        'G7F7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_122',
+        'F10E10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_123',
+        'G7F7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_124',
+        'D2E2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_125',
+        'C14B14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_126',
+        'H2G2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_127',
+        'J7J8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_128',
+        'H9H10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_129',
+        'N11N12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_130',
+        'G0G1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_131',
+        'I14I13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_132',
+        'E8F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_133',
+        'E12F12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_134',
+        'N12N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_135',
+        'M13N13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_136',
+        'K13K12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_137',
+        'J12I12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_138',
+        'D5D6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_139',
+        'L7L8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_140',
+        'G5G6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_141',
+        'F0G0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_142',
+        'I5J5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_143',
+        'M14M13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_144',
+        'H11G11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_145',
+        'M5M4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_146',
+        'M14N14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_147',
+        'F7F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_148',
+        'K12K11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_149',
+        'F14F13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_150',
+        'N10N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_151',
+        'C6C5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_152',
+        'L2K2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_153',
+        'F7F6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_154',
+        'N8O8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_155',
+        'N4M4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_156',
+        'B6C6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_157',
+        'G2F2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_158',
+        'E3E4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_159',
+        'K3K4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_160',
+        'C12C11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_161',
+        'I7J7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_162',
+        'H10H9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_163',
+        'K2J2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_164',
+        'D3D2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_165',
+        'L1L2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_166',
+        'L1M1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_167',
+        'A5B5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_168',
+        'A6A5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_169',
+        'C13D13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_170',
+        'E1D1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_171',
+        'G13G14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_172',
+        'N8M8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_173',
+        'F13G13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_174',
+        'B1C1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_175',
+        'B5A5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_176',
+        'G12G13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_177',
+        'F3E3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_178',
+        'E7E6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_179',
+        'L3L4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_180',
+        'B14A14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_181',
+        'F11E11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_182',
+        'E1D1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_183',
+        'M11N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_184',
+        'L1M1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_185',
+        'K1K0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_186',
+        'B9B8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_187',
+        'I1I2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_188',
+        'C14B14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_189',
+        'J2K2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_190',
+        'M1N1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_191',
+        'J6I6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_192',
+        'K7J7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_193',
+        'L6K6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_194',
+        'A6A7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_195',
+        'L8K8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_196',
+        'A11A10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_197',
+        'H12G12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_198',
+        'K12K11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_199',
+        'C6B6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_200',
+        'A4B4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_201',
+        'F7F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_202',
+        'J8K8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_203',
+        'N13N12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_204',
+        'I2H2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_205',
+        'C12C11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_206',
+        'H1I1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_207',
+        'K14J14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_208',
+        'J13J12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_209',
+        'J4J3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_210',
+        'F5E5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_211',
+        'D10D9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_212',
+        'L3K3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_213',
+        'F9F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_214',
+        'O0N0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_215',
+        'H4H5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_216',
+        'H14I14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_217',
+        'B4B3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_218',
+        'F7F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_219',
+        'K6K5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_220',
+        'M3M2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_221',
+        'I11I12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_222',
+        'E13F13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_223',
+        'O12N12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_224',
+        'H5H4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_225',
+        'N13N14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_226',
+        'H6I6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_227',
+        'M2M1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_228',
+        'M8L8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_229',
+        'O7O6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_230',
+        'J9J10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_231',
+        'O9O10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_232',
+        'L1L2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_233',
+        'C8B8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_234',
+        'I1J1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_235',
+        'A8A9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_236',
+        'L7L6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_237',
+        'F1E1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_238',
+        'M14L14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_239',
+        'E2E1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_240',
+        'B11B10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_241',
+        'L6L7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_242',
+        'H2I2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_243',
+        'K10J10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_244',
+        'E11E12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_245',
+        'C2C3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_246',
+        'G1F1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_247',
+        'N13N14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_248',
+        'O10O9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_249',
+        'K10L10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_250',
+        'C13C14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_251',
+        'M7M6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_252',
+        'G5G6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_253',
+        'C10C9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_254',
+        'L2L3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_255',
+        'M4L4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_256',
+        'C1D1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_257',
+        'H4H5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_258',
+        'J13J12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_259',
+        'E8E7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_260',
+        'N0O0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_261',
+        'N12N13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_262',
+        'O11O12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_263',
+        'O7O8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_264',
+        'G9H9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_265',
+        'E7E8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_266',
+        'G0F0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_267',
+        'J0I0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_268',
+        'B12A12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_269',
+        'M10N10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_270',
+        'E7E8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_271',
+        'F8G8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_272',
+        'N0O0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_273',
+        'B13B12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_274',
+        'D9D10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_275',
+        'L14M14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_276',
+        'N0M0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_277',
+        'E0D0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_278',
+        'B12C12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_279',
+        'D13D12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_280',
+        'C11C12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_281',
+        'K10K9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_282',
+        'E1F1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_283',
+        'L1M1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_284',
+        'J0I0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_285',
+        'G6H6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_286',
+        'J4J3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_287',
+        'E1E0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_288',
+        'N9O9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_289',
+        'J6J7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_290',
+        'D8D7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_291',
+        'L14M14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_292',
+        'D4D5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_293',
+        'B8C8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_294',
+        'H8H9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_295',
+        'D9D10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_296',
+        'F7G7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_297',
+        'M8M7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_298',
+        'E13F13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_299',
+        'F1G1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_300',
+        'E8E7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_301',
+        'L2L3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_302',
+        'A14B14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_303',
+        'C1C0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_304',
+        'C0D0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_305',
+        'E11E10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_306',
+        'D10D9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_307',
+        'J10I10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_308',
+        'D14D13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_309',
+        'K11J11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_310',
+        'L2L1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_311',
+        'B6B5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_312',
+        'E8E7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_313',
+        'I5I4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_314',
+        'D7C7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_315',
+        'N12N13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_316',
+        'M10N10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_317',
+        'N14O14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_318',
+        'C9C8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_319',
+        'A1B1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_320',
+        'K9K8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_321',
+        'B2C2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_322',
+        'B10A10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_323',
+        'M12L12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_324',
+        'O4O5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_325',
+        'H12I12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_326',
+        'C3D3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_327',
+        'O8O7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_328',
+        'B1A1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_329',
+        'B13A13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_330',
+        'B10C10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_331',
+        'F9G9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_332',
+        'A10A9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_333',
+        'L1K1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_334',
+        'M7N7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_335',
+        'O9N9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_336',
+        'D3D4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_337',
+        'K6L6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_338',
+        'D2E2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_339',
+        'O1N1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_340',
+        'A12B12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_341',
+        'M2M3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_342',
+        'J3I3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_343',
+        'C4B4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_344',
+        'E8F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_345',
+        'F1G1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_346',
+        'D10C10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_347',
+        'O8O9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_348',
+        'L13M13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_349',
+        'N10N9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_350',
+        'G12G11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_351',
+        'D13D14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_352',
+        'A4B4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_353',
+        'H4H3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_354',
+        'O13N13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_355',
+        'D10E10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_356',
+        'B4B3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_357',
+        'F5F4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_358',
+        'A9B9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_359',
+        'G4G3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_360',
+        'G4G3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_361',
+        'M1N1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_362',
+        'N12N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_363',
+        'C2C1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_364',
+        'D9C9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_365',
+        'K12L12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_366',
+        'G7H7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_367',
+        'B3B4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_368',
+        'E3E4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_369',
+        'G12G13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_370',
+        'A9A8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_371',
+        'N6M6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_372',
+        'L5L4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_373',
+        'I9H9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_374',
+        'I11I12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_375',
+        'C13C12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_376',
+        'C2C3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_377',
+        'G4F4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_378',
+        'D8C8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_379',
+        'I14H14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_380',
+        'M9N9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_381',
+        'B8B9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_382',
+        'F8G8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_383',
+        'J4J3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_384',
+        'O3O4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_385',
+        'O3O2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_386',
+        'D8D9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_387',
+        'F13F14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_388',
+        'C9D9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_389',
+        'F4F5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_390',
+        'K2J2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_391',
+        'C6D6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_392',
+        'K12J12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_393',
+        'K12K11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_394',
+        'H12I12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_395',
+        'N7O7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_396',
+        'G6G5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_397',
+        'O9O10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_398',
+        'E10D10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_399',
+        'D1D2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_400',
+        'J3J4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_401',
+        'M8M7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_402',
+        'O9O8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_403',
+        'I8I7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_404',
+        'C7D7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_405',
+        'O0N0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_406',
+        'B5B4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_407',
+        'J2J3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_408',
+        'J13J14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_409',
+        'G10G9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_410',
+        'I12I11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_411',
+        'B5C5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_412',
+        'C0C1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_413',
+        'C8C9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_414',
+        'J9I9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_415',
+        'C8C7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_416',
+        'I3H3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_417',
+        'G5G4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_418',
+        'J9J10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_419',
+        'F14G14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_420',
+        'I3J3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_421',
+        'L12K12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_422',
+        'K14J14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_423',
+        'L8L9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_424',
+        'K2J2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_425',
+        'J1K1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_426',
+        'G0F0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_427',
+        'I10I9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_428',
+        'A1B1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_429',
+        'G8G7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_430',
+        'B8A8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_431',
+        'I13J13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_432',
+        'E11F11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_433',
+        'K11L11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_434',
+        'K1K2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_435',
+        'K5K6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_436',
+        'H9H10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_437',
+        'D11E11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_438',
+        'K10J10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_439',
+        'D6C6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_440',
+        'B0C0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_441',
+        'C7C6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_442',
+        'C13C14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_443',
+        'D10D11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_444',
+        'H12H13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_445',
+        'F12F13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_446',
+        'B4B5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_447',
+        'I1J1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_448',
+        'F4G4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_449',
+        'A14B14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_450',
+        'D12C12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_451',
+        'C1D1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_452',
+        'A8A7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_453',
+        'C5B5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_454',
+        'H6I6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_455',
+        'K14K13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_456',
+        'L7M7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_457',
+        'N1N0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_458',
+        'A2B2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_459',
+        'I4J4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_460',
+        'L11K11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_461',
+        'B0B1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_462',
+        'E8D8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_463',
+        'F7F6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_464',
+        'M6M7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_465',
+        'B6C6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_466',
+        'E6E5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_467',
+        'M5N5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_468',
+        'J11I11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_469',
+        'J4J3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_470',
+        'O14N14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_471',
+        'F8E8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_472',
+        'A8A7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_473',
+        'L7K7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_474',
+        'C2D2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_475',
+        'D3E3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_476',
+        'F2F3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_477',
+        'B2C2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_478',
+        'N12N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_479',
+        'H6I6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_480',
+        'N10N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_481',
+        'M4M5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_482',
+        'O13O14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_483',
+        'G4G3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_484',
+        'G7G6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_485',
+        'O13O14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_486',
+        'G4F4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_487',
+        'C9C10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_488',
+        'E7F7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_489',
+        'O9N9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_490',
+        'E6F6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_491',
+        'C13C14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_492',
+        'J11J10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_493',
+        'C3C2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_494',
+        'J6K6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_495',
+        'F0E0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_496',
+        'K10J10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_497',
+        'I9J9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_498',
+        'G0H0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_499',
+        'L8M8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_500',
+        'C7C6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_501',
+        'N8N9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_502',
+        'N0O0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_503',
+        'L3L2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_504',
+        'K12J12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_505',
+        'F1F0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_506',
+        'D5D6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_507',
+        'G13F13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_508',
+        'C5B5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_509',
+        'D8D7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_510',
+        'M13M14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_511',
+        'M2L2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_512',
+        'L13L12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_513',
+        'A13A14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_514',
+        'A2A1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_515',
+        'H9H8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_516',
+        'H10G10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_517',
+        'I5I6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_518',
+        'H9H8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_519',
+        'K11K10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_520',
+        'C7B7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_521',
+        'M4N4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_522',
+        'C4D4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_523',
+        'A10A9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_524',
+        'O3O2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_525',
+        'M2N2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_526',
+        'N10O10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_527',
+        'K11K10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_528',
+        'F9F10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_529',
+        'J4K4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_530',
+        'F11F10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_531',
+        'K0K1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_532',
+        'K3K4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_533',
+        'E3F3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_534',
+        'F11G11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_535',
+        'B1A1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_536',
+        'M9M8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_537',
+        'K7L7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_538',
+        'F10E10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_539',
+        'H5I5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_540',
+        'M8M7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_541',
+        'F7G7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_542',
+        'J4J5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_543',
+        'J3K3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_544',
+        'F6F5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_545',
+        'F9F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_546',
+        'C9B9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_547',
+        'H10I10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_548',
+        'H10H9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_549',
+        'M9M8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_550',
+        'N13N12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_551',
+        'B6B5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_552',
+        'F9F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_553',
+        'B2C2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_554',
+        'A6A5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_555',
+        'J12I12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_556',
+        'K10J10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_557',
+        'C6D6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_558',
+        'L12K12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_559',
+        'O4N4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_560',
+        'M2N2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_561',
+        'I4I5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_562',
+        'K8K9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_563',
+        'I12I13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_564',
+        'B12B13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_565',
+        'L8K8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_566',
+        'O9O8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_567',
+        'B10B9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_568',
+        'B13B12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_569',
+        'I0I1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_570',
+        'B2C2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_571',
+        'L2M2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_572',
+        'E2E1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_573',
+        'H4I4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_574',
+        'B6C6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_575',
+        'D5E5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_576',
+        'D0D1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_577',
+        'B2C2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_578',
+        'C3D3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_579',
+        'J11J10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_580',
+        'I5I4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_581',
+        'A5A4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_582',
+        'N13N12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_583',
+        'B8B7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_584',
+        'I5J5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_585',
+        'C9D9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_586',
+        'O11O10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_587',
+        'O10N10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_588',
+        'I12J12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_589',
+        'M3M2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_590',
+        'E1E2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_591',
+        'F10E10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_592',
+        'H8H9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_593',
+        'M1M2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_594',
+        'J3K3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_595',
+        'C9B9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_596',
+        'J10I10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_597',
+        'N8O8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_598',
+        'H9G9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_599',
+        'O3O2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_600',
+        'E5D5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_601',
+        'H2G2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_602',
+        'K7J7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_603',
+        'K0K1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_604',
+        'G4F4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_605',
+        'F11F10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_606',
+        'B11B10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_607',
+        'F11G11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_608',
+        'B7C7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_609',
+        'H10H9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_610',
+        'A13A12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_611',
+        'L12K12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_612',
+        'N13O13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_613',
+        'E11E10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_614',
+        'E1E0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_615',
+        'M5M6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_616',
+        'I10J10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_617',
+        'H12H13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_618',
+        'N1M1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_619',
+        'M14L14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_620',
+        'N8M8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_621',
+        'E8D8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_622',
+        'G12G11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_623',
+        'G4G3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_624',
+        'H1G1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_625',
+        'A1B1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_626',
+        'H13G13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_627',
+        'E13D13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_628',
+        'M11N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_629',
+        'O11O10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_630',
+        'A12B12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_631',
+        'F12E12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_632',
+        'I6I5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_633',
+        'K8K9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_634',
+        'C5B5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_635',
+        'A9A8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_636',
+        'J5I5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_637',
+        'L13L14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_638',
+        'G5H5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_639',
+        'D1D0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_640',
+        'L14K14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_641',
+        'E0F0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_642',
+        'M13N13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_643',
+        'I12J12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_644',
+        'G6F6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_645',
+        'F9F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_646',
+        'F8E8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_647',
+        'E4E5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_648',
+        'C3D3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_649',
+        'F5F4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_650',
+        'E14E13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_651',
+        'L8L7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_652',
+        'L4L3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_653',
+        'A11A10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_654',
+        'M3L3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_655',
+        'G1G0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_656',
+        'I8I9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_657',
+        'L6K6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_658',
+        'H2I2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_659',
+        'C7D7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_660',
+        'K11K10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_661',
+        'I14H14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_662',
+        'E13E14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_663',
+        'H0I0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_664',
+        'M6M5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_665',
+        'M1N1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_666',
+        'O5O6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_667',
+        'E12E11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_668',
+        'N6N7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_669',
+        'D3E3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_670',
+        'H14G14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_671',
+        'N0O0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_672',
+        'H12H11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_673',
+        'B10A10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_674',
+        'K14L14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_675',
+        'M4N4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_676',
+        'M3M4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_677',
+        'L8K8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_678',
+        'O13N13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_679',
+        'F7F6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_680',
+        'C14B14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_681',
+        'B1B2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_682',
+        'K11L11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_683',
+        'M10N10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_684',
+        'C10C11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_685',
+        'D0D1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_686',
+        'A2A1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_687',
+        'G12G13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_688',
+        'C0C1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_689',
+        'H12I12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_690',
+        'N7M7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_691',
+        'J7J8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_692',
+        'I7J7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_693',
+        'H11H12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_694',
+        'I7I8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_695',
+        'A10B10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_696',
+        'F3F4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_697',
+        'O7O8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_698',
+        'O9O10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_699',
+        'A1B1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_700',
+        'N12N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_701',
+        'G6F6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_702',
+        'C2B2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_703',
+        'I5I6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_704',
+        'B6A6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_705',
+        'L1M1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_706',
+        'D4D5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_707',
+        'C7C6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_708',
+        'H8G8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_709',
+        'I6I5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_710',
+        'C4D4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_711',
+        'M11N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_712',
+        'I7I8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_713',
+        'C1C2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_714',
+        'F7F6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_715',
+        'C2C3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_716',
+        'J3J4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_717',
+        'G11G12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_718',
+        'J5J4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_719',
+        'G0G1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_720',
+        'O0O1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_721',
+        'H5G5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_722',
+        'E0F0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_723',
+        'A3B3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_724',
+        'F7F6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_725',
+        'N1N2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_726',
+        'M6M7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_727',
+        'G6F6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_728',
+        'F13F12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_729',
+        'N4N5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_730',
+        'F4F3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_731',
+        'D12D11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_732',
+        'N6O6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_733',
+        'I14J14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_734',
+        'G11H11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_735',
+        'B8A8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_736',
+        'F2E2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_737',
+        'D6E6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_738',
+        'B0A0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_739',
+        'H9H10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_740',
+        'L8K8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_741',
+        'B3C3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_742',
+        'C1D1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_743',
+        'E5F5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_744',
+        'O11O10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_745',
+        'K4K5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_746',
+        'M8M7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_747',
+        'L5L4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_748',
+        'C9C8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_749',
+        'F9F8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_750',
+        'L1L2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_751',
+        'G5G6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_752',
+        'J9K9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_753',
+        'H5I5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_754',
+        'J7J6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_755',
+        'M1N1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_756',
+        'E12D12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_757',
+        'M3M2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_758',
+        'E13E12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_759',
+        'M9L9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_760',
+        'N4O4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_761',
+        'K9J9',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_762',
+        'I12H12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_763',
+        'I14I13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_764',
+        'N12N11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_765',
+        'M0L0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_766',
+        'A6A7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_767',
+        'K1L1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_768',
+        'K4J4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_769',
+        'H11G11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_770',
+        'L4L5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_771',
+        'F5F4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_772',
+        'F3E3',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_773',
+        'G6G7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_774',
+        'G3G2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_775',
+        'N1M1',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_776',
+        'D4D5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_777',
+        'A13B13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_778',
+        'J7K7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_779',
+        'H5I5',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_780',
+        'L5L4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_781',
+        'J10J11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_782',
+        'D11E11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_783',
+        'B9B10',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_784',
+        'D12E12',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_785',
+        'J12J11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_786',
+        'K9K8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_787',
+        'B7C7',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_788',
+        'J13K13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_789',
+        'D11E11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_790',
+        'H13I13',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_791',
+        'C4D4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_792',
+        'K4J4',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_793',
+        'L0K0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_794',
+        'L14M14',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_795',
+        'I6J6',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_796',
+        'D12D11',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_797',
+        'O9O8',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_798',
+        'F1F2',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    ),
+    (
+        'on_street_799',
+        'D0C0',
+        'on-street',
+        1,
+        5.00,
+        5.00
+    );

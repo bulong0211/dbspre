@@ -31,7 +31,9 @@ def _format_duration(seconds):
 def fetch_data():
     """
     连接数据库并拉取聚合后的仿真指标数据。
-    当前核心比较口径为：两场景均能完成全部车辆停放时，比较全局完成时间。
+    当前核心比较口径为：同时展示停车完成率与全局仿真结束时间。
+    场景 A 可能到达两小时上限仍未完成全部车辆停放，因此停车率以
+    Cruising_Logs 中实际完成停车的车辆数重新计算。
     """
     try:
         conn = get_db_connection()
@@ -56,36 +58,51 @@ def fetch_data():
                 SELECT
                     scenario,
                     COUNT(vehicle_id) AS logged_cars,
+                    COUNT(final_spot_id) AS logged_parked_cars,
                     AVG(search_time_sec) AS avg_search_all,
                     SUM(total_fuel_mg) / 1000000.0 AS total_fuel_kg,
                     SUM(total_co2_mg) / 1000000.0 AS total_co2_kg,
-                    SUM(total_co_mg) / 1000.0 AS total_co_g,
-                    SUM(total_hc_mg) / 1000.0 AS total_hc_g,
                     SUM(total_nox_mg) / 1000.0 AS total_nox_g,
                     SUM(total_pmx_mg) / 1000.0 AS total_pmx_g,
-                    AVG(NULLIF(avg_noise_db, 0)) AS avg_noise_db,
                     SUM(cruising_distance_m) / 1000.0 AS total_dist_km
                 FROM Cruising_Logs
                 GROUP BY scenario
+            ),
+            merged AS (
+                SELECT
+                    COALESCE(r.scenario, l.scenario) AS scenario,
+                    GREATEST(
+                        COALESCE(r.total_vehicles, 0),
+                        COALESCE(l.logged_cars, 0)
+                    ) AS total_cars,
+                    COALESCE(l.logged_parked_cars, r.parked_vehicles, 0) AS parked_cars,
+                    r.completion_time_sec,
+                    l.avg_search_all,
+                    COALESCE(l.total_fuel_kg, 0) AS total_fuel_kg,
+                    COALESCE(l.total_co2_kg, 0) AS total_co2_kg,
+                    COALESCE(l.total_nox_g, 0) AS total_nox_g,
+                    COALESCE(l.total_pmx_g, 0) AS total_pmx_g,
+                    COALESCE(l.total_dist_km, 0) AS total_dist_km
+                FROM latest_runs r
+                FULL OUTER JOIN log_metrics l ON r.scenario = l.scenario
             )
             SELECT
-                COALESCE(r.scenario, l.scenario) AS scenario,
-                COALESCE(r.total_vehicles, l.logged_cars, 0) AS total_cars,
-                COALESCE(r.parked_vehicles, 0) AS parked_cars,
-                COALESCE(r.failed_vehicles, 0) AS failed_cars,
-                COALESCE(r.parking_rate, 0) AS parking_rate,
-                r.completion_time_sec,
-                l.avg_search_all,
-                COALESCE(l.total_fuel_kg, 0) AS total_fuel_kg,
-                COALESCE(l.total_co2_kg, 0) AS total_co2_kg,
-                COALESCE(l.total_co_g, 0) AS total_co_g,
-                COALESCE(l.total_hc_g, 0) AS total_hc_g,
-                COALESCE(l.total_nox_g, 0) AS total_nox_g,
-                COALESCE(l.total_pmx_g, 0) AS total_pmx_g,
-                COALESCE(l.avg_noise_db, 0) AS avg_noise_db,
-                COALESCE(l.total_dist_km, 0) AS total_dist_km
-            FROM latest_runs r
-            FULL OUTER JOIN log_metrics l ON r.scenario = l.scenario
+                scenario,
+                total_cars,
+                parked_cars,
+                GREATEST(total_cars - parked_cars, 0) AS failed_cars,
+                CASE
+                    WHEN total_cars > 0 THEN parked_cars::FLOAT / total_cars
+                    ELSE 0
+                END AS parking_rate,
+                completion_time_sec,
+                avg_search_all,
+                total_fuel_kg,
+                total_co2_kg,
+                total_nox_g,
+                total_pmx_g,
+                total_dist_km
+            FROM merged
             ORDER BY scenario ASC;
         """
         df = pd.read_sql(query, conn)
@@ -126,7 +143,8 @@ else:
     completion_delta = row_B["completion_time_sec"] - row_A["completion_time_sec"]
     fuel_delta = row_B["total_fuel_kg"] - row_A["total_fuel_kg"]
     co2_delta = row_B["total_co2_kg"] - row_A["total_co2_kg"]
-    noise_delta = row_B["avg_noise_db"] - row_A["avg_noise_db"]
+    nox_delta = row_B["total_nox_g"] - row_A["total_nox_g"]
+    pmx_delta = row_B["total_pmx_g"] - row_A["total_pmx_g"]
     dist_saved = row_A["total_dist_km"] - row_B["total_dist_km"]
 
     st.markdown("### 📊 核心指标看板 (KPIs)")
@@ -140,7 +158,7 @@ else:
         )
     with col2:
         st.metric(
-            label="完成全部停放时间",
+            label="仿真结束时间",
             value=_format_duration(row_B["completion_time_sec"]),
             delta=f"{completion_delta:.0f} 秒（相比场景 A）",
             delta_color="inverse",
@@ -161,8 +179,8 @@ else:
         )
 
     st.info(
-        "当前两种场景均可在 2 小时仿真上限内完成全部车辆停放，停放率本身不再构成有效区分；"
-        "核心比较指标改为完成全部车辆停放所需的全局仿真时间。"
+        "场景 A 的停车率按 Cruising_Logs 中实际写入 final_spot_id 的车辆数计算，"
+        "因此不会再把达到两小时上限的未停车辆误判为 100% 完成。"
     )
 
     st.divider()
@@ -183,7 +201,7 @@ else:
             ]
         )
         fig_completion.update_layout(
-            title="完成全部车辆停放所需仿真时间",
+            title="仿真结束时间",
             yaxis_title="仿真时间 (秒)",
             template="plotly_white",
         )
@@ -261,15 +279,13 @@ else:
 
     fig_pollutants = go.Figure(
         data=[
-            go.Bar(name="CO (g)", x=df["scenario"], y=df["total_co_g"]),
-            go.Bar(name="HC (g)", x=df["scenario"], y=df["total_hc_g"]),
             go.Bar(name="NOx (g)", x=df["scenario"], y=df["total_nox_g"]),
             go.Bar(name="PMx (g)", x=df["scenario"], y=df["total_pmx_g"]),
         ]
     )
     fig_pollutants.update_layout(
         barmode="group",
-        title="有害尾气污染物累计排放",
+        title="保留污染物累计排放",
         yaxis_title="质量 (g)",
         template="plotly_white",
     )
@@ -278,19 +294,20 @@ else:
     st.markdown("---")
     st.markdown("### 💡 结果解释")
     st.info(
-        f"**停放率：** 场景 A 与场景 B 当前均达到 **{success_A:.1f}% / {success_B:.1f}%**，因此不再以成功率判断优劣。"
+        f"**停放率：** 场景 A 为 **{success_A:.2f}%**，场景 B 为 **{success_B:.2f}%**；"
+        f"{'两场景均完成全部停车。' if both_completed else '至少一个场景存在未完成停车车辆。'}"
     )
     st.info(
-        f"**完成时间：** 场景 A 完成全部车辆停放用时 **{_format_duration(row_A['completion_time_sec'])}**，"
-        f"场景 B 用时 **{_format_duration(row_B['completion_time_sec'])}**。"
+        f"**仿真结束时间：** 场景 A 结束于 **{_format_duration(row_A['completion_time_sec'])}**，"
+        f"场景 B 结束于 **{_format_duration(row_B['completion_time_sec'])}**。"
     )
     st.info(
         f"**环境成本：** 场景 B 相比场景 A 的总油耗变化为 **{fuel_delta:.2f} kg**，"
         f"CO2 变化为 **{co2_delta:.2f} kg**，"
-        f"平均噪声变化为 **{noise_delta:.2f} dB**，"
+        f"NOx 变化为 **{nox_delta:.2f} g**，PMx 变化为 **{pmx_delta:.2f} g**，"
         f"无效巡航距离减少 **{dist_saved:.1f} km**。"
     )
 
     st.caption(
-        "注：完成全部停放时间来自 Simulation_Runs.completion_time_sec；环境指标来自 Cruising_Logs 中逐车累计的 SUMO TraCI 排放变量。"
+        "注：仿真结束时间来自 Simulation_Runs.completion_time_sec；停车率、搜索时间、燃油和保留排放指标来自 Cruising_Logs。"
     )

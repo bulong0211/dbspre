@@ -72,8 +72,7 @@ SCENARIO_B_NAME = "Smart_Booking_Priced"
 # Scenario B parameters
 # ---------------------------------------------------------------------------
 STREET_SPOT_THRESHOLD = 3
-WEIGHT_DISTANCE = 1.0
-WEIGHT_PRICE = 100.0
+UNIT_DIST_COST = 0.0025
 
 # ---------------------------------------------------------------------------
 # Database

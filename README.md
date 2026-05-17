@@ -24,7 +24,7 @@
 | 场景 | 入口脚本 | 核心逻辑 |
 | --- | --- | --- |
 | 场景 A：基准盲目寻位 | `scripts/run_scenario_A_baseline.py` | 车辆进入路网后不知道全局车位状态，只能沿街扫描可见范围内的空车位；找不到时继续改道巡航。 |
-| 场景 B：智能预订与动态定价 | `scripts/run_scenario_B_smart.py` | 车辆生成时查询数据库，根据距离和当前价格选择可用车位，并提前预订和导航。 |
+| 场景 B：智能预订与动态定价 | `scripts/run_scenario_B_smart.py` | 车辆生成时查询数据库，根据路网行驶距离折算成本和当前价格选择可用车位，并提前预订和导航。 |
 
 当前实验中两个场景都能在 2 小时仿真上限内完成全部车辆停放，停放率均为 100%。因此成功率只作为事实陈述，核心比较指标改为“完成全部车辆停放所需的全局仿真时间”。
 
@@ -273,8 +273,7 @@ dbspre/
 | `TARGET_TIMEOUT` | `120` | 锁定目标车位后的超时时间。 |
 | `PLOTTER_UPDATE_INTERVAL` | `5` | matplotlib 刷新间隔。 |
 | `DB_SYNC_INTERVAL` | `60` | 数据库同步间隔。 |
-| `WEIGHT_DISTANCE` | `1.0` | 场景 B 成本函数中的距离权重。 |
-| `WEIGHT_PRICE` | `100.0` | 场景 B 成本函数中的价格权重。 |
+| `UNIT_DIST_COST` | `0.0025` | 场景 B 中每米路网行驶距离折算的货币成本，单位元/米；综合燃油成本和司机时间成本设定。 |
 
 ---
 
@@ -375,7 +374,7 @@ dbspre/
 | `_build_pricing_index()` | 预计算路边车位街道分组和路外停车场索引，减少每步重复聚合。 |
 | `_price_from_rate()` | 根据占用率返回基础价、1.5 倍或 2 倍价格。 |
 | `_compute_pricing()` | 按占用率更新动态价格：超过 70% 为 1.5 倍，超过 90% 为 2 倍。 |
-| `_find_best_spot()` | 使用 `距离 * WEIGHT_DISTANCE + 价格 * WEIGHT_PRICE` 选择最优车位。 |
+| `_find_best_spot()` | 使用 `current_price + driving_distance * UNIT_DIST_COST` 选择统一货币成本最低的车位。 |
 | `_assign_vehicle()` | 设置车辆目标道路、停车区停止命令并初始化车辆状态。 |
 | `_settle()` | 将车辆结果写入 `Cruising_Logs`。 |
 | `_handle_departed()` | 处理新生成车辆并为其分配车位。 |

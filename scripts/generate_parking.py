@@ -54,7 +54,7 @@ sql_lines = [
     "DROP TYPE IF EXISTS spot_category;",
     "CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');",
     "CREATE TABLE Parking_Spots (spot_id VARCHAR(50) PRIMARY KEY, edge_id VARCHAR(50) NOT NULL, spot_type spot_category NOT NULL, capacity INT NOT NULL, occupied INT DEFAULT 0, base_price DECIMAL(5,2) NOT NULL, current_price DECIMAL(5,2) NOT NULL);",
-    "CREATE TABLE Cruising_Logs (log_id SERIAL PRIMARY KEY, vehicle_id VARCHAR(50) NOT NULL, scenario VARCHAR(20) NOT NULL, search_time_sec FLOAT NOT NULL, cruising_distance_m FLOAT NOT NULL, final_spot_id VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, total_fuel_mg FLOAT NOT NULL, total_co2_mg FLOAT NOT NULL DEFAULT 0, total_co_mg FLOAT NOT NULL DEFAULT 0, total_hc_mg FLOAT NOT NULL DEFAULT 0, total_nox_mg FLOAT NOT NULL DEFAULT 0, total_pmx_mg FLOAT NOT NULL DEFAULT 0, avg_noise_db FLOAT NOT NULL DEFAULT 0);",
+    "CREATE TABLE Cruising_Logs (log_id SERIAL PRIMARY KEY, vehicle_id VARCHAR(50) NOT NULL, scenario VARCHAR(20) NOT NULL, search_time_sec FLOAT NOT NULL, cruising_distance_m FLOAT NOT NULL, final_spot_id VARCHAR(50), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, total_fuel_mg FLOAT NOT NULL, total_co2_mg FLOAT NOT NULL DEFAULT 0, total_nox_mg FLOAT NOT NULL DEFAULT 0, total_pmx_mg FLOAT NOT NULL DEFAULT 0);",
     "CREATE TABLE Simulation_Runs (run_id SERIAL PRIMARY KEY, scenario VARCHAR(20) NOT NULL, completion_time_sec FLOAT NOT NULL, total_vehicles INT NOT NULL, parked_vehicles INT NOT NULL, failed_vehicles INT NOT NULL, parking_rate FLOAT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);",
     "INSERT INTO Parking_Spots (spot_id, edge_id, spot_type, capacity, base_price, current_price) VALUES",
 ]
