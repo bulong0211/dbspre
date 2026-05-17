@@ -26,7 +26,7 @@ The project includes two comparable scenarios:
 | Scenario A: baseline blind search | `scripts/run_scenario_A_baseline.py` | Vehicles do not know the global parking state. They scan only visible roadside spots and keep rerouting when no spot is found. |
 | Scenario B: smart reservation and dynamic pricing | `scripts/run_scenario_B_smart.py` | Vehicles query the database at departure, choose an available spot by route-distance cost and current price, reserve it, and navigate to it. |
 
-In the current experiments, both scenarios complete all vehicle parking within the 2-hour simulation limit, so both parking rates are 100%. The parking rate is therefore reported as a fact, while the primary comparison metric is the global simulation time required to complete parking for all vehicles.
+Experiment results should be read from the latest database records in `Simulation_Runs` and `Cruising_Logs`. Reports should present parking rate, simulation ending time, average search time, cruising distance, fuel consumption, and persisted emission metrics together instead of turning one run into a permanent conclusion.
 
 ---
 
@@ -187,11 +187,8 @@ Stores per-vehicle parking search results.
 | `created_at` | `TIMESTAMP` | Insert timestamp. |
 | `total_fuel_mg` | `FLOAT` | Accumulated fuel consumption during search. |
 | `total_co2_mg` | `FLOAT` | Accumulated carbon dioxide emissions during search/driving. |
-| `total_co_mg` | `FLOAT` | Accumulated carbon monoxide emissions. |
-| `total_hc_mg` | `FLOAT` | Accumulated hydrocarbon emissions. |
 | `total_nox_mg` | `FLOAT` | Accumulated nitrogen oxides emissions. |
 | `total_pmx_mg` | `FLOAT` | Accumulated particulate matter emissions. |
-| `avg_noise_db` | `FLOAT` | Average vehicle noise while driving. |
 
 ### 4.4 Table: `Simulation_Runs`
 
@@ -237,7 +234,7 @@ dbspre/
 │   │   ├── config.py         # Global config, SUMO command, simulation parameters
 │   │   ├── connection.py     # PostgreSQL connection
 │   │   ├── db_ops.py         # Logs, run summaries, and spot synchronization
-│   │   ├── emissions.py      # Vehicle exhaust, pollutant, and noise accumulation
+│   │   ├── emissions.py      # Vehicle fuel and persisted emission accumulation
 │   │   ├── gui_tracker.py    # SUMO-GUI camera tracking
 │   │   ├── monitor.py        # matplotlib real-time monitor
 │   │   ├── parking_logic.py  # Scenario A curbside search logic
@@ -301,7 +298,7 @@ Main parameters are in `scripts/core/config.py`.
 
 | Function / constant | Purpose |
 | --- | --- |
-| `EMISSION_SUB_VARS` | TraCI vehicle subscription variables for fuel, CO2, CO, HC, NOx, PMx, and noise. |
+| `EMISSION_SUB_VARS` | TraCI vehicle subscription variables for fuel, CO2, NOx, and PMx. |
 | `init_environment_stats()` | Initialize per-vehicle environmental accumulation fields. |
 | `accumulate_environment(stats, data)` | Accumulate one-step TraCI emission data into vehicle state. |
 | `environment_log_values(stats)` | Produce environmental values for `Cruising_Logs`. |
@@ -374,7 +371,7 @@ Main parameters are in `scripts/core/config.py`.
 | `_build_pricing_index()` | Precompute curbside street groups and off-street lot indexes to avoid repeated aggregation. |
 | `_price_from_rate()` | Return base, 1.5x, or 2x price from an occupancy rate. |
 | `_compute_pricing()` | Update prices by occupancy: 1.5x above 70%, 2x above 90%. |
-| `_find_best_spot()` | Select the spot with the lowest unified monetary cost, `current_price + driving_distance * UNIT_DIST_COST`. |
+| `_find_best_spot()` | Select the spot with the lowest unified monetary cost, `current_price + estimated_route_distance * UNIT_DIST_COST`, using a local network graph for distance estimation. |
 | `_assign_vehicle()` | Set the route target, parking stop command, and initial vehicle state. |
 | `_settle()` | Write vehicle result to `Cruising_Logs`. |
 | `_handle_departed()` | Assign spots to newly departed vehicles. |
@@ -403,10 +400,22 @@ The project should report only metrics that are actually recorded in the databas
 - Parking rate: `Simulation_Runs.parking_rate`
 - Total fuel: `SUM(total_fuel_mg)`
 - Total CO2: `SUM(total_co2_mg)`
-- Harmful gases and particles: `SUM(total_co_mg)`, `SUM(total_hc_mg)`, `SUM(total_nox_mg)`, `SUM(total_pmx_mg)`
-- Average noise: `AVG(avg_noise_db)`
+- Nitrogen oxides and particulate matter: `SUM(total_nox_mg)`, `SUM(total_pmx_mg)`
 - Scenario A cruising distance: `SUM(cruising_distance_m)`
 
-Because both scenarios currently reach a 100% parking rate, reports and dashboards should not use success rate as the main comparison metric. The primary comparison is the global simulation time required to complete parking for all vehicles.
+The latest database snapshot is shown below. After a new simulation run, the newest database records should replace these values.
+
+| Metric | Scenario A: baseline blind search | Scenario B: smart reservation |
+| --- | ---: | ---: |
+| Planned vehicles | 2500 | 2500 |
+| Parked vehicles | 2498 | 2500 |
+| Parking rate | 99.92% | 100.00% |
+| Simulation ending time | 7200 s | 3922 s |
+| Average search/arrival time | 371.29 s | 108.72 s |
+| Cruising distance | 2692.06 km | 0.00 km |
+| Total fuel | 421.87 kg | 184.58 kg |
+| Total CO2 | 1301.31 kg | 569.37 kg |
+| Total NOx | 413.17 g | 190.02 g |
+| Total PMx | 46.53 g | 46.08 g |
 
 If a metric is not collected or written to the database, it should not be treated as a measured result in reports, papers, or dashboards.

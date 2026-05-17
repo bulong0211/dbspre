@@ -1,9 +1,14 @@
 """场景 B —— 智能预订 + 动态定价模式。"""
 
+import heapq
+import math
+import xml.etree.ElementTree as ET
+
 import traci
 import traci.constants as tc
 import traci.exceptions
 from core.config import (
+    CONFIG_DIR,
     DB_SYNC_INTERVAL,
     ENABLE_SCREEN_RECORDING,
     PLOTTER_UPDATE_INTERVAL,
@@ -71,6 +76,124 @@ def _compute_positions(all_spots):
                 data["pos"] = (0, 0)
 
 
+def _load_edge_graph():
+    """从 SUMO net.xml 读取本地有向路网，供场景 B 快速估算路网距离。"""
+    tree = ET.parse(CONFIG_DIR / "demo.net.xml")
+    nodes = {
+        n.attrib["id"]: (float(n.attrib["x"]), float(n.attrib["y"]))
+        for n in tree.getroot().findall("junction")
+    }
+    edges = {}
+    graph = {}
+
+    for edge in tree.getroot().findall("edge"):
+        if "function" in edge.attrib:
+            continue
+
+        eid = edge.attrib["id"]
+        from_node = edge.attrib.get("from")
+        to_node = edge.attrib.get("to")
+        if from_node not in nodes or to_node not in nodes:
+            continue
+
+        length = None
+        lane = edge.find("lane")
+        if lane is not None and "length" in lane.attrib:
+            length = float(lane.attrib["length"])
+        if length is None:
+            fx, fy = nodes[from_node]
+            tx, ty = nodes[to_node]
+            length = math.hypot(tx - fx, ty - fy)
+
+        edges[eid] = {
+            "from_node": from_node,
+            "to_node": to_node,
+            "length": length,
+        }
+        graph.setdefault(from_node, []).append((to_node, length))
+
+    return edges, graph
+
+
+def _shortest_node_distances(start_node, graph):
+    """单源 Dijkstra；每辆新车只计算一次，再复用到所有候选车位。"""
+    distances = {start_node: 0.0}
+    heap = [(0.0, start_node)]
+
+    while heap:
+        current_dist, node = heapq.heappop(heap)
+        if current_dist > distances[node]:
+            continue
+        for next_node, edge_len in graph.get(node, []):
+            next_dist = current_dist + edge_len
+            if next_dist < distances.get(next_node, float("inf")):
+                distances[next_node] = next_dist
+                heapq.heappush(heap, (next_dist, next_node))
+
+    return distances
+
+
+def _fallback_euclidean_distance(vehicle_pos, sp):
+    return math.hypot(vehicle_pos[0] - sp["pos"][0], vehicle_pos[1] - sp["pos"][1])
+
+
+def _fallback_candidate_distances(vid, all_spots):
+    try:
+        vehicle_pos = traci.vehicle.getPosition(vid)
+    except traci.exceptions.TraCIException:
+        return {}
+    return {
+        sid: _fallback_euclidean_distance(vehicle_pos, sp)
+        for sid, sp in all_spots.items()
+        if sp["booked"] < sp["capacity"]
+    }
+
+
+def _candidate_distances(vid, all_spots, edge_data, graph):
+    """估算车辆到各目标边停车位置的路网行驶距离。"""
+    try:
+        current_edge = traci.vehicle.getRoadID(vid)
+        current_pos = traci.vehicle.getLanePosition(vid)
+    except traci.exceptions.TraCIException:
+        return {}
+
+    current = edge_data.get(current_edge)
+    if current is None:
+        return _fallback_candidate_distances(vid, all_spots)
+
+    remaining_current = max(0.0, current["length"] - current_pos)
+    node_distances = _shortest_node_distances(current["to_node"], graph)
+    result = {}
+    vehicle_pos = None
+
+    for sid, sp in all_spots.items():
+        if sp["booked"] >= sp["capacity"]:
+            continue
+
+        target = edge_data.get(sp["edge"])
+        if target is None:
+            if vehicle_pos is None:
+                try:
+                    vehicle_pos = traci.vehicle.getPosition(vid)
+                except traci.exceptions.TraCIException:
+                    continue
+            result[sid] = _fallback_euclidean_distance(vehicle_pos, sp)
+            continue
+
+        stop_pos = max(0.0, sp["stop_pos"] or 0.0)
+        if sp["edge"] == current_edge and stop_pos >= current_pos:
+            result[sid] = stop_pos - current_pos
+            continue
+
+        node_dist = node_distances.get(target["from_node"])
+        if node_dist is None:
+            continue
+
+        result[sid] = remaining_current + node_dist + stop_pos
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # 浪涌定价
 # ---------------------------------------------------------------------------
@@ -120,48 +243,20 @@ def _compute_pricing(all_spots, pricing_index):
 # ---------------------------------------------------------------------------
 # 车辆分配
 # ---------------------------------------------------------------------------
-def _restore_route(vid, route):
-    """恢复车辆原始路径，避免候选距离测算留下临时目标。"""
-    if not route:
-        return
-    try:
-        route_index = max(0, traci.vehicle.getRouteIndex(vid))
-        remaining_route = list(route[route_index:])
-        if remaining_route:
-            traci.vehicle.setRoute(vid, remaining_route)
-    except traci.exceptions.TraCIException:
-        pass
-
-
-def _find_best_spot(vid, all_spots):
+def _find_best_spot(vid, all_spots, edge_data, graph):
     """按统一货币成本选择最优车位。"""
-    available = [sid for sid, d in all_spots.items() if d["booked"] < d["capacity"]]
-    if not available:
+    distances = _candidate_distances(vid, all_spots, edge_data, graph)
+    if not distances:
         return None
 
-    original_route = traci.vehicle.getRoute(vid)
     best = None
     min_cost = float("inf")
-    for sid in available:
+    for sid, dist in distances.items():
         sp = all_spots[sid]
-        try:
-            traci.vehicle.changeTarget(vid, sp["edge"])
-            dist = traci.vehicle.getDrivingDistance(
-                vid, sp["edge"], sp["stop_pos"], sp["lane_index"]
-            )
-        except traci.exceptions.TraCIException:
-            continue
-
-        if dist < 0:
-            continue
-
         cost = sp["current_price"] + (dist * UNIT_DIST_COST)
         if cost < min_cost:
             min_cost = cost
             best = sid
-
-    if best is None:
-        _restore_route(vid, original_route)
     return best
 
 
@@ -210,7 +305,9 @@ def _settle(vid, stats, current_time, spot_id, cursor, conn):
     conn.commit()
 
 
-def _handle_departed(departed, all_spots, veh_stats, active_driving, current_time):
+def _handle_departed(
+    departed, all_spots, veh_stats, active_driving, current_time, edge_data, graph
+):
     """新生成车辆：分配车位 → 初始化状态。"""
     booked_any = False
 
@@ -220,7 +317,7 @@ def _handle_departed(departed, all_spots, veh_stats, active_driving, current_tim
         except traci.exceptions.TraCIException:
             continue
 
-        spot_id = _find_best_spot(vid, all_spots)
+        spot_id = _find_best_spot(vid, all_spots, edge_data, graph)
         if spot_id is None:
             traci.simulation.writeMessage(f"⚠️ [系统爆满] 车辆 {vid} 无法分配到车位！")
             continue
@@ -301,6 +398,7 @@ def run_smart_booking_with_pricing():
 
     all_spots = _load_spots(cursor)
     pricing_index = _build_pricing_index(all_spots)
+    edge_data, graph = _load_edge_graph()
 
     print("🚀 启动场景 B (动态定价 + 智能预订模式) - 最大限时 2 小时...")
     traci.start(sumoCmd)
@@ -322,7 +420,7 @@ def run_smart_booking_with_pricing():
 
         while (
             traci.simulation.getMinExpectedNumber() > 0
-            and current_time <= SIMULATION_DURATION_LIMIT
+            and current_time < SIMULATION_DURATION_LIMIT
         ):
             traci.simulationStep()
             current_time = traci.simulation.getTime()
@@ -336,7 +434,13 @@ def run_smart_booking_with_pricing():
                     _compute_pricing(all_spots, pricing_index)
                     pricing_dirty = False
                 pricing_dirty = _handle_departed(
-                    departed, all_spots, veh_stats, active_driving, current_time
+                    departed,
+                    all_spots,
+                    veh_stats,
+                    active_driving,
+                    current_time,
+                    edge_data,
+                    graph,
                 ) or pricing_dirty
 
             # 行驶中车辆处理

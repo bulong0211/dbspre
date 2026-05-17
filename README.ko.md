@@ -26,7 +26,7 @@
 | 시나리오 A: 기준 맹목 탐색 | `scripts/run_scenario_A_baseline.py` | 차량은 전체 주차 상태를 알지 못하고 가시 거리 안의 도로변 주차 공간만 탐색합니다. 공간이 없으면 계속 경로를 바꿉니다. |
 | 시나리오 B: 스마트 예약 및 동적 가격 | `scripts/run_scenario_B_smart.py` | 차량 출발 시 데이터베이스를 조회하고 경로 주행거리 환산 비용과 현재 가격을 기준으로 사용 가능한 공간을 선택해 예약합니다. |
 
-현재 실험에서는 두 시나리오 모두 2시간 시뮬레이션 제한 안에 모든 차량의 주차를 완료하며, 주차율은 모두 100%입니다. 따라서 주차율은 사실로만 제시하고, 핵심 비교 지표는 모든 차량의 주차 완료에 필요한 전역 시뮬레이션 시간입니다.
+실험 결과는 `Simulation_Runs`와 `Cruising_Logs`에 가장 최근 기록된 데이터베이스 값을 기준으로 해석해야 합니다. 보고서에서는 주차율, 시뮬레이션 종료 시간, 평균 탐색 시간, 순항 거리, 연료 소비, 지속 저장된 배출 지표를 함께 제시해야 하며, 한 번의 실행 결과를 고정 결론처럼 작성하면 안 됩니다.
 
 ---
 
@@ -187,11 +187,8 @@ CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
 | `created_at` | `TIMESTAMP` | 기록 시각. |
 | `total_fuel_mg` | `FLOAT` | 탐색 중 누적 연료 소비량. |
 | `total_co2_mg` | `FLOAT` | 탐색/주행 중 누적 이산화탄소 배출량. |
-| `total_co_mg` | `FLOAT` | 누적 일산화탄소 배출량. |
-| `total_hc_mg` | `FLOAT` | 누적 탄화수소 배출량. |
 | `total_nox_mg` | `FLOAT` | 누적 질소산화물 배출량. |
 | `total_pmx_mg` | `FLOAT` | 누적 입자상 물질 배출량. |
-| `avg_noise_db` | `FLOAT` | 주행 중 평균 차량 소음. |
 
 ### 4.4 테이블: `Simulation_Runs`
 
@@ -301,7 +298,7 @@ dbspre/
 
 | 함수 / 상수 | 기능 |
 | --- | --- |
-| `EMISSION_SUB_VARS` | 연료, CO2, CO, HC, NOx, PMx, 소음에 대한 TraCI 차량 구독 변수입니다. |
+| `EMISSION_SUB_VARS` | 연료, CO2, NOx, PMx에 대한 TraCI 차량 구독 변수입니다. |
 | `init_environment_stats()` | 차량별 환경 지표 누적 필드를 초기화합니다. |
 | `accumulate_environment(stats, data)` | 단일 단계 TraCI 배출 데이터를 차량 상태에 누적합니다. |
 | `environment_log_values(stats)` | `Cruising_Logs`에 기록할 환경 지표 값을 생성합니다. |
@@ -374,7 +371,7 @@ dbspre/
 | `_build_pricing_index()` | 반복 집계를 줄이기 위해 도로변 주차 그룹과 노외 주차장 인덱스를 미리 계산합니다. |
 | `_price_from_rate()` | 점유율에 따라 기본가, 1.5배, 2배 가격을 반환합니다. |
 | `_compute_pricing()` | 점유율 70% 초과 시 1.5배, 90% 초과 시 2배로 가격을 갱신합니다. |
-| `_find_best_spot()` | `current_price + driving_distance * UNIT_DIST_COST` 기준으로 통합 화폐 비용이 가장 낮은 주차 공간을 선택합니다. |
+| `_find_best_spot()` | 로컬 도로망 그래프로 추정한 `current_price + estimated_route_distance * UNIT_DIST_COST` 기준으로 통합 화폐 비용이 가장 낮은 주차 공간을 선택합니다. |
 | `_assign_vehicle()` | 목표 edge, 주차 정지 명령, 초기 차량 상태를 설정합니다. |
 | `_settle()` | 차량 결과를 `Cruising_Logs`에 기록합니다. |
 | `_handle_departed()` | 새로 출발한 차량에 주차 공간을 배정합니다. |
@@ -403,10 +400,22 @@ dbspre/
 - 주차율: `Simulation_Runs.parking_rate`
 - 총 연료 소비: `SUM(total_fuel_mg)`
 - 총 CO2: `SUM(total_co2_mg)`
-- 유해 가스 및 입자상 물질: `SUM(total_co_mg)`, `SUM(total_hc_mg)`, `SUM(total_nox_mg)`, `SUM(total_pmx_mg)`
-- 평균 소음: `AVG(avg_noise_db)`
+- 질소산화물 및 입자상 물질: `SUM(total_nox_mg)`, `SUM(total_pmx_mg)`
 - 시나리오 A 순항 거리: `SUM(cruising_distance_m)`
 
-현재 두 시나리오 모두 100% 주차율에 도달하므로 보고서와 대시보드는 성공률을 주요 비교 지표로 사용하지 않아야 합니다. 핵심 비교 대상은 모든 차량의 주차 완료에 필요한 전역 시뮬레이션 시간입니다.
+가장 최근 데이터베이스 실행 스냅샷은 다음과 같습니다. 새 시뮬레이션을 실행한 뒤에는 최신 데이터베이스 기록으로 값을 갱신해야 합니다.
+
+| 지표 | 시나리오 A: 기준 맹목 탐색 | 시나리오 B: 스마트 예약 |
+| --- | ---: | ---: |
+| 계획 차량 수 | 2500 | 2500 |
+| 성공 주차 차량 수 | 2498 | 2500 |
+| 주차율 | 99.92% | 100.00% |
+| 시뮬레이션 종료 시간 | 7200 s | 3922 s |
+| 평균 탐색/도착 시간 | 371.29 s | 108.72 s |
+| 순항 거리 | 2692.06 km | 0.00 km |
+| 총 연료 소비 | 421.87 kg | 184.58 kg |
+| 총 CO2 | 1301.31 kg | 569.37 kg |
+| 총 NOx | 413.17 g | 190.02 g |
+| 총 PMx | 46.53 g | 46.08 g |
 
 수집되거나 데이터베이스에 기록되지 않은 지표는 보고서, 논문, 대시보드에서 실측 결과로 다루면 안 됩니다.

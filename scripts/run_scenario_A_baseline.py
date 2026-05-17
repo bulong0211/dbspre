@@ -389,7 +389,7 @@ def run_baseline():
         current_time = 0
         while (
             traci.simulation.getMinExpectedNumber() > 0
-            and current_time <= SIMULATION_DURATION_LIMIT
+            and current_time < SIMULATION_DURATION_LIMIT
         ):
             traci.simulationStep()
             current_time = traci.simulation.getTime()

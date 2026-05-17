@@ -26,7 +26,7 @@
 | 场景 A：基准盲目寻位 | `scripts/run_scenario_A_baseline.py` | 车辆进入路网后不知道全局车位状态，只能沿街扫描可见范围内的空车位；找不到时继续改道巡航。 |
 | 场景 B：智能预订与动态定价 | `scripts/run_scenario_B_smart.py` | 车辆生成时查询数据库，根据路网行驶距离折算成本和当前价格选择可用车位，并提前预订和导航。 |
 
-当前实验中两个场景都能在 2 小时仿真上限内完成全部车辆停放，停放率均为 100%。因此成功率只作为事实陈述，核心比较指标改为“完成全部车辆停放所需的全局仿真时间”。
+实验结果以数据库最新写入的 `Simulation_Runs` 和 `Cruising_Logs` 为准。报告时应同时展示停放率、仿真结束时间、平均寻位时间、巡航距离、燃油与已持久化排放指标，避免把某一次运行结果写成固定结论。
 
 ---
 
@@ -187,11 +187,8 @@ CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
 | `created_at` | `TIMESTAMP` | 写入时间。 |
 | `total_fuel_mg` | `FLOAT` | 寻位过程累计燃油消耗。 |
 | `total_co2_mg` | `FLOAT` | 寻位/行驶过程累计二氧化碳排放。 |
-| `total_co_mg` | `FLOAT` | 累计一氧化碳排放。 |
-| `total_hc_mg` | `FLOAT` | 累计碳氢化合物排放。 |
 | `total_nox_mg` | `FLOAT` | 累计氮氧化物排放。 |
 | `total_pmx_mg` | `FLOAT` | 累计颗粒物排放。 |
-| `avg_noise_db` | `FLOAT` | 车辆行驶期间平均噪声。 |
 
 ### 4.4 表：`Simulation_Runs`
 
@@ -301,7 +298,7 @@ dbspre/
 
 | 函数/常量 | 功能 |
 | --- | --- |
-| `EMISSION_SUB_VARS` | TraCI 车辆订阅变量列表，包含燃油、CO2、CO、HC、NOx、PMx、噪声。 |
+| `EMISSION_SUB_VARS` | TraCI 车辆订阅变量列表，包含燃油、CO2、NOx、PMx。 |
 | `init_environment_stats()` | 初始化单车环境指标累计字段。 |
 | `accumulate_environment(stats, data)` | 将单步 TraCI 排放数据累计到车辆状态中。 |
 | `environment_log_values(stats)` | 生成写入 `Cruising_Logs` 的环境指标值。 |
@@ -374,7 +371,7 @@ dbspre/
 | `_build_pricing_index()` | 预计算路边车位街道分组和路外停车场索引，减少每步重复聚合。 |
 | `_price_from_rate()` | 根据占用率返回基础价、1.5 倍或 2 倍价格。 |
 | `_compute_pricing()` | 按占用率更新动态价格：超过 70% 为 1.5 倍，超过 90% 为 2 倍。 |
-| `_find_best_spot()` | 使用 `current_price + driving_distance * UNIT_DIST_COST` 选择统一货币成本最低的车位。 |
+| `_find_best_spot()` | 使用 `current_price + estimated_route_distance * UNIT_DIST_COST` 选择统一货币成本最低的车位，距离由本地路网图估算。 |
 | `_assign_vehicle()` | 设置车辆目标道路、停车区停止命令并初始化车辆状态。 |
 | `_settle()` | 将车辆结果写入 `Cruising_Logs`。 |
 | `_handle_departed()` | 处理新生成车辆并为其分配车位。 |
@@ -403,10 +400,22 @@ dbspre/
 - 停放率：`Simulation_Runs.parking_rate`
 - 总油耗：`SUM(total_fuel_mg)`
 - 总 CO2：`SUM(total_co2_mg)`
-- 有害气体与颗粒物：`SUM(total_co_mg)`、`SUM(total_hc_mg)`、`SUM(total_nox_mg)`、`SUM(total_pmx_mg)`
-- 平均噪声：`AVG(avg_noise_db)`
+- 氮氧化物与颗粒物：`SUM(total_nox_mg)`、`SUM(total_pmx_mg)`
 - 场景 A 巡航距离：`SUM(cruising_distance_m)`
 
-当前实验结果中两个场景均达到 100% 停放率，因此文档、看板和报告不再将成功率作为主要比较指标；核心比较对象是完成全部车辆停放所需的全局仿真时间。
+数据库最新一次运行快照如下，后续重新运行仿真后应以数据库中的最新记录为准。
+
+| 指标 | 场景 A：基准盲目寻位 | 场景 B：智能预订 |
+| --- | ---: | ---: |
+| 计划车辆数 | 2500 | 2500 |
+| 成功停放车辆数 | 2498 | 2500 |
+| 停放率 | 99.92% | 100.00% |
+| 仿真结束时间 | 7200 s | 3922 s |
+| 平均寻位/到达时间 | 371.29 s | 108.72 s |
+| 巡航距离 | 2692.06 km | 0.00 km |
+| 总燃油 | 421.87 kg | 184.58 kg |
+| 总 CO2 | 1301.31 kg | 569.37 kg |
+| 总 NOx | 413.17 g | 190.02 g |
+| 总 PMx | 46.53 g | 46.08 g |
 
 如果某项指标没有被脚本采集或没有写入数据库，就不应在论文、报告或看板中当作实测结果使用。

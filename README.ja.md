@@ -26,7 +26,7 @@
 | シナリオ A: 基準の盲目的探索 | `scripts/run_scenario_A_baseline.py` | 車両は全体の駐車状態を知らず、可視範囲内の路上駐車スペースだけを探します。空きがなければ経路変更を続けます。 |
 | シナリオ B: スマート予約と動的価格 | `scripts/run_scenario_B_smart.py` | 車両出発時にデータベースを照会し、経路距離の換算コストと現在価格に基づいて利用可能なスペースを選択して予約します。 |
 
-現在の実験では、両シナリオとも 2 時間のシミュレーション上限内に全車両の駐車を完了し、駐車率はいずれも 100% です。そのため駐車率は事実として示すだけにし、主な比較指標は全車両の駐車完了に必要な全体シミュレーション時間とします。
+実験結果は、`Simulation_Runs` と `Cruising_Logs` に最後に書き込まれたデータベース値を基準に解釈します。レポートでは、駐車率、シミュレーション終了時刻、平均探索時間、巡航距離、燃料消費、永続化された排出指標を併記し、1 回の実行結果を固定的な結論として書かないようにします。
 
 ---
 
@@ -187,11 +187,8 @@ CREATE TYPE spot_category AS ENUM ('on-street', 'off-street');
 | `created_at` | `TIMESTAMP` | 記録時刻。 |
 | `total_fuel_mg` | `FLOAT` | 探索中の累積燃料消費。 |
 | `total_co2_mg` | `FLOAT` | 探索/走行中の累積二酸化炭素排出量。 |
-| `total_co_mg` | `FLOAT` | 累積一酸化炭素排出量。 |
-| `total_hc_mg` | `FLOAT` | 累積炭化水素排出量。 |
 | `total_nox_mg` | `FLOAT` | 累積窒素酸化物排出量。 |
 | `total_pmx_mg` | `FLOAT` | 累積粒子状物質排出量。 |
-| `avg_noise_db` | `FLOAT` | 走行中の平均車両騒音。 |
 
 ### 4.4 テーブル: `Simulation_Runs`
 
@@ -301,7 +298,7 @@ dbspre/
 
 | 関数 / 定数 | 機能 |
 | --- | --- |
-| `EMISSION_SUB_VARS` | 燃料、CO2、CO、HC、NOx、PMx、騒音の TraCI 車両購読変数です。 |
+| `EMISSION_SUB_VARS` | 燃料、CO2、NOx、PMx の TraCI 車両購読変数です。 |
 | `init_environment_stats()` | 車両ごとの環境指標累積フィールドを初期化します。 |
 | `accumulate_environment(stats, data)` | 1 ステップ分の TraCI 排出データを車両状態に累積します。 |
 | `environment_log_values(stats)` | `Cruising_Logs` に書き込む環境指標値を生成します。 |
@@ -374,7 +371,7 @@ dbspre/
 | `_build_pricing_index()` | 反復集計を減らすため、路上駐車グループと路外駐車場インデックスを事前計算します。 |
 | `_price_from_rate()` | 占有率に応じて基本価格、1.5 倍、2 倍価格を返します。 |
 | `_compute_pricing()` | 占有率 70% 超で 1.5 倍、90% 超で 2 倍に価格更新します。 |
-| `_find_best_spot()` | `current_price + driving_distance * UNIT_DIST_COST` により統一貨幣コストが最小の駐車スペースを選択します。 |
+| `_find_best_spot()` | ローカル道路網グラフで推定した `current_price + estimated_route_distance * UNIT_DIST_COST` により統一貨幣コストが最小の駐車スペースを選択します。 |
 | `_assign_vehicle()` | 目標 edge、駐車停止コマンド、初期車両状態を設定します。 |
 | `_settle()` | 車両結果を `Cruising_Logs` に記録します。 |
 | `_handle_departed()` | 新規出発車両に駐車スペースを割り当てます。 |
@@ -403,10 +400,22 @@ dbspre/
 - 駐車率: `Simulation_Runs.parking_rate`
 - 総燃料消費: `SUM(total_fuel_mg)`
 - 総 CO2: `SUM(total_co2_mg)`
-- 有害ガスと粒子状物質: `SUM(total_co_mg)`, `SUM(total_hc_mg)`, `SUM(total_nox_mg)`, `SUM(total_pmx_mg)`
-- 平均騒音: `AVG(avg_noise_db)`
+- 窒素酸化物と粒子状物質: `SUM(total_nox_mg)`, `SUM(total_pmx_mg)`
 - シナリオ A 巡航距離: `SUM(cruising_distance_m)`
 
-現在は両シナリオとも 100% の駐車率に達するため、レポートとダッシュボードでは成功率を主要比較指標として扱いません。主な比較対象は、全車両の駐車完了に必要な全体シミュレーション時間です。
+最新のデータベース実行スナップショットは次のとおりです。新しいシミュレーションを実行した後は、最新のデータベース記録で値を更新してください。
+
+| 指標 | シナリオ A: 基準の盲目的探索 | シナリオ B: スマート予約 |
+| --- | ---: | ---: |
+| 計画車両数 | 2500 | 2500 |
+| 駐車成功車両数 | 2498 | 2500 |
+| 駐車率 | 99.92% | 100.00% |
+| シミュレーション終了時間 | 7200 s | 3922 s |
+| 平均探索/到着時間 | 371.29 s | 108.72 s |
+| 巡航距離 | 2692.06 km | 0.00 km |
+| 総燃料消費 | 421.87 kg | 184.58 kg |
+| 総 CO2 | 1301.31 kg | 569.37 kg |
+| 総 NOx | 413.17 g | 190.02 g |
+| 総 PMx | 46.53 g | 46.08 g |
 
 収集されていない、またはデータベースに書き込まれていない指標を、レポート、論文、ダッシュボードで実測結果として扱うべきではありません。
