@@ -1,3 +1,5 @@
+"""多进程 Matplotlib 监控面板。"""
+
 import multiprocessing as mp
 import queue
 from typing import Dict
@@ -239,6 +241,7 @@ class MultiprocessingPlotter:
     """主进程代理类：负责提取指标并发送至渲染进程。"""
 
     def __init__(self, window_title: str, layout: str = "A"):
+        """启动独立绘图进程，避免阻塞 SUMO 主仿真循环。"""
         self._layout = layout
         self.queue = mp.Queue(maxsize=1000)
         worker = _LAYOUTS.get(layout, _render_full)
@@ -277,10 +280,12 @@ class MultiprocessingPlotter:
         if self._layout == "A":
             cruising = sum(
                 1 for v in veh_stats.values()
-                if v.get("status") in ("cruising", "driving")
+                if v.get("status") == "cruising"
             )
             total_cruise_dist = sum(
-                v.get("last_dist", 0.0) for v in veh_stats.values()
+                max(0.0, v.get("last_dist", 0.0) - v.get("cruise_start_dist", 0.0))
+                for v in veh_stats.values()
+                if v.get("cruise_start_dist") is not None
             ) / 1000.0
             payload["cruising"] = cruising
             payload["total_cruise_dist"] = total_cruise_dist
@@ -291,5 +296,6 @@ class MultiprocessingPlotter:
             pass
 
     def close(self):
+        """通知绘图进程退出并等待资源回收。"""
         self.queue.put("STOP")
         self.process.join()

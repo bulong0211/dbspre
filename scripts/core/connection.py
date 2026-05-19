@@ -1,3 +1,5 @@
+"""数据库连接配置与连接工厂。"""
+
 import os
 import psycopg2
 from typing import Dict, Any

@@ -2,6 +2,7 @@
 
 
 def ensure_simulation_runs_table(cursor):
+    """确保场景级运行摘要表存在。"""
     cursor.execute(
         """CREATE TABLE IF NOT EXISTS Simulation_Runs (
            run_id SERIAL PRIMARY KEY,
@@ -17,6 +18,7 @@ def ensure_simulation_runs_table(cursor):
 
 
 def ensure_cruising_logs_environment_columns(cursor):
+    """为单车日志表补齐环境排放字段，兼容旧数据库结构。"""
     cursor.execute(
         """ALTER TABLE Cruising_Logs
            ADD COLUMN IF NOT EXISTS total_co2_mg FLOAT NOT NULL DEFAULT 0,
@@ -37,6 +39,7 @@ def log_cruise(
     total_nox=0.0,
     total_pmx=0.0,
 ):
+    """写入一辆车的寻位结果、行驶距离和累计排放。"""
     cursor.execute(
         """INSERT INTO Cruising_Logs
            (vehicle_id, scenario, search_time_sec, cruising_distance_m,
@@ -66,6 +69,7 @@ def log_run_summary(
     parked_vehicles,
     failed_vehicles,
 ):
+    """写入一个场景的完成时间、停车成功数和失败数摘要。"""
     ensure_simulation_runs_table(cursor)
     parking_rate = parked_vehicles / total_vehicles if total_vehicles else 0.0
     cursor.execute(
@@ -86,6 +90,7 @@ def log_run_summary(
 
 
 def sync_spots(cursor, conn, spots_data):
+    """同步场景 A 的车位占用状态。"""
     sync = [(d["occupied"], sid) for sid, d in spots_data.items()]
     cursor.executemany(
         "UPDATE Parking_Spots SET occupied = %s WHERE spot_id = %s", sync
@@ -94,6 +99,7 @@ def sync_spots(cursor, conn, spots_data):
 
 
 def sync_spots_priced(cursor, conn, spots_data):
+    """同步场景 B 的预订占用状态和动态价格。"""
     sync = [(d["booked"], d["current_price"], sid) for sid, d in spots_data.items()]
     cursor.executemany(
         "UPDATE Parking_Spots SET occupied = %s, current_price = %s WHERE spot_id = %s",

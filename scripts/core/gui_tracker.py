@@ -15,6 +15,7 @@ class GUITracker:
     """管理 SUMO-GUI 中镜头跟随车辆的行为。"""
 
     def __init__(self):
+        """初始化镜头当前主角和节流计数器。"""
         self.protagonist = None
         self.total_tracked = 0
         self.last_track_time = 0.0
@@ -60,13 +61,16 @@ class GUITracker:
 
     @property
     def current_protagonist(self):
+        """返回当前被 SUMO-GUI 跟随的车辆 ID。"""
         return self.protagonist
 
     def on_vehicle_parked(self, vid):
+        """当前主角停车后释放镜头，等待下次重新选车。"""
         if vid == self.protagonist:
             self.protagonist = None
 
     def _track(self):
+        """将 SUMO-GUI 镜头绑定到当前主角车辆。"""
         try:
             traci.gui.trackVehicle("View #0", self.protagonist)
             traci.gui.setZoom("View #0", GUI_ZOOM_TRACKED)
@@ -75,6 +79,7 @@ class GUITracker:
             pass
 
     def _untrack(self):
+        """清除 SUMO-GUI 车辆跟随并恢复默认缩放。"""
         try:
             traci.gui.trackVehicle("View #0", "")
             traci.gui.setZoom("View #0", GUI_ZOOM_DEFAULT)

@@ -12,6 +12,7 @@ EMISSION_SUB_VARS = [
 
 
 def init_environment_stats():
+    """返回车辆级排放累计字段的初始值。"""
     return {
         "total_fuel": 0.0,
         "total_co2": 0.0,
@@ -21,6 +22,7 @@ def init_environment_stats():
 
 
 def accumulate_environment(stats, data):
+    """从 TraCI 订阅结果中累加单步燃油与污染物排放。"""
     stats["total_fuel"] = stats.get("total_fuel", 0.0) + data.get(
         tc.VAR_FUELCONSUMPTION, 0.0
     )
@@ -36,6 +38,7 @@ def accumulate_environment(stats, data):
 
 
 def environment_log_values(stats):
+    """提取写入数据库所需的排放累计值。"""
     return {
         "total_fuel": stats.get("total_fuel", 0.0),
         "total_co2": stats.get("total_co2", 0.0),

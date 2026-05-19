@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 def run_step(step_name, cmd, cwd=None):
+    """执行准备流程中的一个外部命令，失败时立即终止。"""
     print(f"\n{'='*60}\n🚀 {step_name}\n{'='*60}")
     try:
         subprocess.run(cmd, check=True, cwd=cwd)
@@ -21,6 +22,7 @@ def run_step(step_name, cmd, cwd=None):
         sys.exit(1)
 
 def main():
+    """依次生成路网、车位、交通流并初始化数据库。"""
     scripts_dir = Path(__file__).resolve().parent
     root_dir = scripts_dir.parent
 

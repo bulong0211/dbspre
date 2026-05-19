@@ -1,3 +1,5 @@
+"""展示场景 A 与场景 B 仿真结果对比的 Streamlit 仪表盘。"""
+
 import warnings
 
 import pandas as pd
@@ -20,6 +22,7 @@ warnings.filterwarnings("ignore")
 
 
 def _format_duration(seconds):
+    """将秒数格式化为仪表盘展示用的 h/m/s 文本。"""
     seconds = 0 if pd.isna(seconds) else int(round(seconds))
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
@@ -177,11 +180,6 @@ else:
             delta=f"{co2_delta:.2f} kg（相比场景 A）",
             delta_color="inverse",
         )
-
-    st.info(
-        "场景 A 的停车率按 Cruising_Logs 中实际写入 final_spot_id 的车辆数计算，"
-        "因此不会再把达到两小时上限的未停车辆误判为 100% 完成。"
-    )
 
     st.divider()
 

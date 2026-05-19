@@ -45,6 +45,14 @@ def reroute_random(vid, all_edges, opposite_map=None, outgoing_map=None):
         return False
 
 
+def _start_cruising_on_spot_failure(stats):
+    """首次车位承诺失效时，把车辆从 driving 切换到 cruising。"""
+    if stats.get("status") == "driving":
+        stats["status"] = "cruising"
+        stats["initial_destination_pending"] = False
+        stats["cruise_start_reason"] = "spot_failure"
+
+
 def scan_street(
     vid,
     current_edge,
@@ -66,6 +74,7 @@ def scan_street(
         edge_lengths = {}
 
     def _add_spots(edge_id, base_dist, min_ahead):
+        """把指定道路上视距内且未满的车位加入候选集。"""
         for sid in spots_by_edge.get(edge_id, []):
             if all_spots[sid]["occupied"] >= all_spots[sid]["capacity"]:
                 continue
@@ -75,6 +84,7 @@ def scan_street(
                 candidates.append((sid, edge_id, ahead))
 
     def _add_with_opp(edge_id, base_dist, min_ahead):
+        """同时扫描指定道路及其对向道路的合法可见车位。"""
         _add_spots(edge_id, base_dist, min_ahead)
         opp = opposite_map.get(edge_id)
         if not opp:
@@ -174,6 +184,7 @@ def check_pending(
     if pending not in all_spots:
         stats.pop("pending_spot", None)
         stats.pop("pending_spot_edge", None)
+        _start_cruising_on_spot_failure(stats)
         reroute_random(vid, all_edges, opposite_map, outgoing_map)
         return
     if all_spots[pending]["occupied"] < all_spots[pending]["capacity"]:
@@ -186,10 +197,12 @@ def check_pending(
             stats.pop("target_spot", None)
             stats.pop("pending_spot", None)
             stats.pop("pending_spot_edge", None)
+            _start_cruising_on_spot_failure(stats)
             reroute_random(vid, all_edges, opposite_map, outgoing_map)
     else:
         stats.pop("pending_spot", None)
         stats.pop("pending_spot_edge", None)
+        _start_cruising_on_spot_failure(stats)
         reroute_random(vid, all_edges, opposite_map, outgoing_map)
 
 
@@ -200,6 +213,7 @@ def handle_occupied(
     target = stats.get("target_spot")
     if not target or target not in all_spots:
         stats["target_spot"] = None
+        _start_cruising_on_spot_failure(stats)
         reroute_random(vid, all_edges, opposite_map, outgoing_map)
         return
     target_edge = all_spots[target]["edge"]
@@ -211,6 +225,7 @@ def handle_occupied(
             except traci.exceptions.TraCIException:
                 pass
             stats["target_spot"] = None
+            _start_cruising_on_spot_failure(stats)
             reroute_random(vid, all_edges, opposite_map, outgoing_map)
         return
     if all_spots[target]["occupied"] >= all_spots[target]["capacity"]:
@@ -219,4 +234,5 @@ def handle_occupied(
         except traci.exceptions.TraCIException:
             pass
         stats["target_spot"] = None
+        _start_cruising_on_spot_failure(stats)
         reroute_random(vid, all_edges, opposite_map, outgoing_map)

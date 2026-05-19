@@ -1,3 +1,5 @@
+"""根据 configs/schema.sql 初始化 PostgreSQL 数据库。"""
+
 import psycopg2
 from pathlib import Path
 
@@ -7,6 +9,7 @@ SQL_FILE = Path(__file__).resolve().parent.parent / "configs" / "schema.sql"
 
 
 def init_database():
+    """读取 schema.sql，执行建表和停车位初始数据导入。"""
     print(f"正在读取 SQL 脚本: {SQL_FILE}")
     try:
         with open(SQL_FILE, "r", encoding="utf-8") as f:

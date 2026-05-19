@@ -44,6 +44,7 @@ from core.reset_db import reset_database
 # 静态数据加载
 # ---------------------------------------------------------------------------
 def _load_spots(cursor):
+    """从数据库和 parking.add.xml 合并读取车位容量与物理位置。"""
     cursor.execute("SELECT spot_id, edge_id, capacity FROM Parking_Spots")
     spots = {
         row[0]: {"edge": row[1], "capacity": row[2], "occupied": 0, "startPos": 0.0}
@@ -59,6 +60,7 @@ def _load_spots(cursor):
 
 
 def _load_edges():
+    """解析 SUMO 路网，提取普通道路的端点、节点和几何长度。"""
     tree = ET.parse(CONFIG_DIR / "demo.net.xml")
     nodes = {
         n.attrib["id"]: (float(n.attrib["x"]), float(n.attrib["y"]))
@@ -84,6 +86,7 @@ def _load_edges():
 
 
 def _build_opposite_map(all_edges):
+    """建立每条道路对应的反向道路映射，用于视野和重路由过滤。"""
     opposite = {}
     for eid, e in all_edges.items():
         opposite[eid] = None
@@ -99,6 +102,7 @@ def _build_opposite_map(all_edges):
 
 
 def _build_outgoing_map(all_edges, opposite_map):
+    """建立每条道路驶出后的候选道路列表，排除掉头方向。"""
     outgoing = {}
     for eid, e in all_edges.items():
         to_node = e["to_node"]
@@ -112,6 +116,7 @@ def _build_outgoing_map(all_edges, opposite_map):
 
 
 def _spots_by_edge(all_spots):
+    """按道路聚合车位，降低沿街扫描时的候选查找成本。"""
     result = {}
     for sid, s in all_spots.items():
         result.setdefault(s["edge"], []).append(sid)
@@ -121,16 +126,26 @@ def _spots_by_edge(all_spots):
 # ---------------------------------------------------------------------------
 # 车辆结算
 # ---------------------------------------------------------------------------
+def _cruising_distance(stats, current_dist):
+    """计算车辆进入 cruising 后产生的真实巡航距离。"""
+    cruise_start_dist = stats.get("cruise_start_dist")
+    if cruise_start_dist is None:
+        return 0.0
+    return max(0.0, current_dist - cruise_start_dist)
+
+
 def _settle(vid, stats, current_time, current_dist, spot_id, cursor, conn):
+    """结算成功停车车辆并写入单车日志。"""
     search_time = current_time - stats["spawn_time"]
     stats["search_time"] = search_time
+    cruise_dist = _cruising_distance(stats, current_dist)
     env = environment_log_values(stats)
     log_cruise(
         cursor,
         vid,
         SCENARIO_A_NAME,
         search_time,
-        current_dist,
+        cruise_dist,
         env["total_fuel"],
         spot_id,
         env["total_co2"],
@@ -141,16 +156,18 @@ def _settle(vid, stats, current_time, current_dist, spot_id, cursor, conn):
 
 
 def _settle_lost(vid, stats, current_time, cursor, conn):
+    """结算未能停车或已离开仿真的车辆。"""
     stats["status"] = "teleported"
     search_time = current_time - stats["spawn_time"]
     stats["search_time"] = search_time
+    cruise_dist = _cruising_distance(stats, stats.get("last_dist", 0.0))
     env = environment_log_values(stats)
     log_cruise(
         cursor,
         vid,
         SCENARIO_A_NAME,
         search_time,
-        stats.get("last_dist", 0.0),
+        cruise_dist,
         env["total_fuel"],
         None,
         env["total_co2"],
@@ -161,18 +178,41 @@ def _settle_lost(vid, stats, current_time, cursor, conn):
 
 
 def _init_stats(current_time):
+    """初始化车辆状态；出发时先处于 driving，满足条件后才进入 cruising。"""
     stats = {
-        "status": "cruising",
+        "status": "driving",
         "target_spot": None,
         "pending_spot": None,
         "pending_spot_edge": None,
+        "initial_destination_pending": True,
         "spawn_time": current_time,
         "search_time": 0.0,
+        "cruise_start_dist": None,
         "last_dist": 0.0,
         "speed": 0.0,
     }
     stats.update(init_environment_stats())
     return stats
+
+
+def _start_cruising(stats, current_time, current_dist, reason):
+    """将车辆从普通行驶切换为巡航，并记录切换时间、距离和原因。"""
+    if stats.get("status") != "driving":
+        return False
+    stats["status"] = "cruising"
+    stats["cruise_start_time"] = current_time
+    stats["cruise_start_dist"] = current_dist
+    stats["cruise_start_reason"] = reason
+    stats["initial_destination_pending"] = False
+    return True
+
+
+def _record_external_cruise_start(stats, current_time, current_dist):
+    """补记由停车逻辑模块触发的巡航起点。"""
+    if stats.get("status") != "cruising" or "cruise_start_time" in stats:
+        return
+    stats["cruise_start_time"] = current_time
+    stats["cruise_start_dist"] = current_dist
 
 
 SUB_VARS = [
@@ -203,6 +243,7 @@ def _process_vehicle(
     conn,
     gui,
 ):
+    """推进单辆活动车辆的寻位、承诺车位、停入和失效处理。"""
     current_dist = data[tc.VAR_DISTANCE]
     current_edge = data[tc.VAR_ROAD_ID]
     current_lanepos = data.get(tc.VAR_LANEPOSITION, 0.0)
@@ -235,9 +276,11 @@ def _process_vehicle(
     pending_id = stats.get("pending_spot")
     had_target = bool(stats.get("target_spot"))
     target_id = stats.get("target_spot")
+    was_driving = stats.get("status") == "driving"
     check_pending(
         vid, stats, current_edge, all_spots, all_edges_list, opposite_map, outgoing_map
     )
+    _record_external_cruise_start(stats, current_time, current_dist)
     if stats.get("target_spot"):
         target_still = stats.get("target_spot")
 
@@ -255,11 +298,19 @@ def _process_vehicle(
             stats["target_spot"] = None
             stats.pop("_target_since", None)
             stats.pop("_target_at", None)
+            started_cruising = _start_cruising(
+                stats, current_time, current_dist, "spot_timeout"
+            )
             reroute_random(vid, all_edges_list, opposite_map, outgoing_map)
             if tracked:
-                traci.simulation.writeMessage(
-                    f"  [{vid}] 车位 {target_still} 等待超时，放弃"
-                )
+                if started_cruising:
+                    traci.simulation.writeMessage(
+                        f"  [{vid}] 车位 {target_still} 等待超时，开始巡航"
+                    )
+                else:
+                    traci.simulation.writeMessage(
+                        f"  [{vid}] 车位 {target_still} 等待超时，放弃"
+                    )
             return False
 
         handle_occupied(
@@ -271,8 +322,13 @@ def _process_vehicle(
             opposite_map,
             outgoing_map,
         )
+        _record_external_cruise_start(stats, current_time, current_dist)
         if tracked:
-            if had_target and not stats.get("target_spot"):
+            if was_driving and stats.get("status") == "cruising":
+                traci.simulation.writeMessage(
+                    f"  [{vid}] 车位 {target_id} 失效，开始巡航"
+                )
+            elif had_target and not stats.get("target_spot"):
                 traci.simulation.writeMessage(
                     f"  [{vid}] 准备停入的车位 {target_id} 失效，重新寻找"
                 )
@@ -283,9 +339,14 @@ def _process_vehicle(
         return False
 
     if tracked and had_pending and not stats.get("pending_spot"):
-        traci.simulation.writeMessage(
-            f"  [{vid}] 预定的车位 {pending_id} 失效，重新寻找"
-        )
+        if was_driving and stats.get("status") == "cruising":
+            traci.simulation.writeMessage(
+                f"  [{vid}] 预定的车位 {pending_id} 失效，开始巡航"
+            )
+        else:
+            traci.simulation.writeMessage(
+                f"  [{vid}] 预定的车位 {pending_id} 失效，重新寻找"
+            )
 
     # 沿街寻找空车位
     do_full = (
@@ -349,6 +410,14 @@ def _process_vehicle(
         if not stats.get("pending_spot") and not stats.get("target_spot"):
             route = traci.vehicle.getRoute(vid)
             if traci.vehicle.getRouteIndex(vid) >= len(route) - ROUTE_EXHAUSTION_MARGIN:
+                if stats.get("initial_destination_pending"):
+                    _start_cruising(
+                        stats, current_time, current_dist, "route_exhausted"
+                    )
+                    if tracked:
+                        traci.simulation.writeMessage(
+                            f"  [{vid}] 首次随机目的地即将到达，未发现空车位，开始巡航"
+                        )
                 reroute_random(vid, all_edges_list, opposite_map, outgoing_map)
 
     return False
@@ -358,6 +427,7 @@ def _process_vehicle(
 # 主仿真循环
 # ---------------------------------------------------------------------------
 def run_baseline():
+    """运行场景 A 的全路网盲目寻位仿真。"""
     print("🔄 准备仿真环境...")
     reset_database(clear_logs=True)
 
@@ -374,7 +444,7 @@ def run_baseline():
     spots_by_edge = _spots_by_edge(all_spots)
 
     veh_stats = {}
-    cruising_vids = set()
+    active_vids = set()
     completed = teleported = 0
     plotter = None
     recorder = None
@@ -407,23 +477,23 @@ def run_baseline():
                 except traci.exceptions.TraCIException:
                     continue
                 veh_stats[vid] = _init_stats(current_time)
-                cruising_vids.add(vid)
+                active_vids.add(vid)
                 if not reroute_random(vid, all_edges_list, opposite_map, outgoing_map):
                     _settle_lost(vid, veh_stats[vid], current_time, cursor, conn)
-                    cruising_vids.discard(vid)
+                    active_vids.discard(vid)
                     teleported += 1
 
             sub_results = traci.vehicle.getAllSubscriptionResults()
 
             # 行驶中车辆处理
-            for vid in list(cruising_vids):
+            for vid in list(active_vids):
                 stats = veh_stats.get(vid)
-                if stats is None or stats["status"] != "cruising":
-                    cruising_vids.discard(vid)
+                if stats is None or stats["status"] not in ("driving", "cruising"):
+                    active_vids.discard(vid)
                     continue
                 if vid not in sub_results:
                     _settle_lost(vid, stats, current_time, cursor, conn)
-                    cruising_vids.discard(vid)
+                    active_vids.discard(vid)
                     teleported += 1
                     continue
                 parked = _process_vehicle(
@@ -442,7 +512,7 @@ def run_baseline():
                     gui,
                 )
                 if parked:
-                    cruising_vids.discard(vid)
+                    active_vids.discard(vid)
                     completed += 1
 
             # 监控面板刷新
@@ -469,9 +539,9 @@ def run_baseline():
 
         if current_time >= SIMULATION_DURATION_LIMIT:
             print("⏳ 仿真时间达到上限，结算剩余车辆...")
-            for vid in list(cruising_vids):
+            for vid in list(active_vids):
                 stats = veh_stats.get(vid)
-                if stats is None or stats["status"] != "cruising":
+                if stats is None or stats["status"] not in ("driving", "cruising"):
                     continue
                 try:
                     curr_dist = traci.vehicle.getDistance(vid)

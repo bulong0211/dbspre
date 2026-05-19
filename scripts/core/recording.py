@@ -1,3 +1,5 @@
+"""SUMO-GUI 窗口布局与屏幕录制辅助工具。"""
+
 import atexit
 import ctypes
 import os
@@ -17,6 +19,7 @@ from .config import (
 
 
 def _iter_windows():
+    """枚举当前 Windows 桌面上可见窗口的句柄和标题。"""
     if os.name != "nt":
         return []
 
@@ -24,6 +27,7 @@ def _iter_windows():
     windows = []
 
     def callback(hwnd, _):
+        """EnumWindows 回调：收集有标题的可见窗口。"""
         if not user32.IsWindowVisible(hwnd):
             return True
         length = user32.GetWindowTextLengthW(hwnd)
@@ -73,7 +77,10 @@ def place_sumo_left_half(timeout=5.0):
 
 
 class ScreenRecorder:
+    """使用 ffmpeg gdigrab 在 Windows 上录制仿真演示画面。"""
+
     def __init__(self, scenario_name, enabled):
+        """保存录制配置，实际 ffmpeg 进程由 start() 启动。"""
         self.scenario_name = scenario_name
         self.enabled = enabled
         self.process = None
@@ -82,6 +89,7 @@ class ScreenRecorder:
         self._atexit_registered = False
 
     def start(self):
+        """启动录制进程并返回输出文件路径；不可用时静默跳过。"""
         if not self.enabled:
             print("Screen recording disabled: ENABLE_SCREEN_RECORDING=False")
             return None
@@ -147,6 +155,7 @@ class ScreenRecorder:
         return self.output_path
 
     def stop(self):
+        """优先让 ffmpeg 正常收尾，失败时逐级终止录制进程。"""
         if self._stopped:
             return
         self._stopped = True
@@ -186,6 +195,7 @@ class ScreenRecorder:
             print(f"Screen recording stopped: {self.output_path}")
 
     def _unregister_atexit(self):
+        """移除退出钩子，避免 stop() 被重复调用。"""
         if not self._atexit_registered:
             return
         try:

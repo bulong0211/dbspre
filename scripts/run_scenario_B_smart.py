@@ -37,6 +37,7 @@ from core.reset_db import reset_database
 # 静态数据加载
 # ---------------------------------------------------------------------------
 def _load_spots(cursor):
+    """读取场景 B 所需的车位容量、基础价格和当前价格。"""
     cursor.execute(
         "SELECT spot_id, edge_id, capacity, base_price, current_price FROM Parking_Spots"
     )
@@ -134,10 +135,12 @@ def _shortest_node_distances(start_node, graph):
 
 
 def _fallback_euclidean_distance(vehicle_pos, sp):
+    """在缺少路网拓扑时使用直线距离作为保底估算。"""
     return math.hypot(vehicle_pos[0] - sp["pos"][0], vehicle_pos[1] - sp["pos"][1])
 
 
 def _fallback_candidate_distances(vid, all_spots):
+    """为所有未满车位生成直线距离候选表。"""
     try:
         vehicle_pos = traci.vehicle.getPosition(vid)
     except traci.exceptions.TraCIException:
@@ -216,6 +219,7 @@ def _build_pricing_index(all_spots):
 
 
 def _price_from_rate(base_price, rate):
+    """根据占用率阶梯计算动态价格。"""
     if rate > 0.90:
         return base_price * 2.0
     if rate > 0.70:
@@ -389,6 +393,7 @@ def _process_driving(
 # 主仿真循环
 # ---------------------------------------------------------------------------
 def run_smart_booking_with_pricing():
+    """运行场景 B 的智能预订与动态定价仿真。"""
     print("🔄 准备仿真环境...")
     reset_database(clear_logs=False, scenario_to_clear=SCENARIO_B_NAME)
 

@@ -1,3 +1,5 @@
+"""重置仿真数据库状态的命令行工具。"""
+
 import sys
 
 from .connection import get_db_connection
